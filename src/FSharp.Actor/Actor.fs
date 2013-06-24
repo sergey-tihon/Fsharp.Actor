@@ -85,7 +85,7 @@ module Actor =
                 preRestart.Trigger(actor :> IActor)
                 shutdown actor (sprintf "Restarting: %s" reason)
                 setStatus ActorStatus.Restarting
-                start actor reason
+                start actor reason 
                 onRestarted.Trigger(actor :> IActor)
             )
         
@@ -132,8 +132,7 @@ module Actor =
                    match sysMessage with
                    | Shutdown(reason) -> shutdown x reason
                    | Restart(reason) -> restart x reason
-                   
-    
+
             member x.Receive(?timeout) = 
                 async {
                     let! msg = options.Mailbox.Receive(timeout, cts.Token)
@@ -207,13 +206,3 @@ module Actor =
 
     let unwatch (actors:seq<IActor>) = 
         actors |> Seq.iter (fun a -> a.UnWatch())
-        
-    let deadLetter name = 
-        let computation (actor:IActor<_>) = 
-            let rec loop() = 
-                async {
-                    let! msg = actor.Receive()
-                    return! loop()
-                }
-            loop()
-        new T<_>(computation, Options<_>.Create(name)) :> IActor<_>

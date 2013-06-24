@@ -212,4 +212,73 @@ This outputs
     actor://main-pc/a/child_3 recieved "Forward this to your children"
     actor://main-pc/a/child_2 recieved "Forward this to your children"
     actor://main-pc/a/child_4 recieved "Forward this to your children"
+
+#State in Actors
+
+State in actors is managed by passing an extra parameter around the loops. For example,
+*)
+
+let incrementer =
+    Actor.spawn Actor.Options.Default (fun actor -> 
+        let log = (actor :?> Actor.T<int>).Log
+        let rec loopWithState (currentCount:int) = 
+            async {
+                let! (a,_) = actor.Receive()
+                log.Debug(sprintf "Incremented count by %d" a, None) 
+                return! loopWithState (currentCount + a)
+            }
+        loopWithState 0
+    )
+
+incrementer <-- 1
+incrementer <-- 2
+
+(**
+However the if the actor dies this state is lost. We need a way of rebuilding this state. Here we can use event sourcing. We can persist the events as
+they pour into the actor then on restart replay those events. 
+*)
+
+type Messages = 
+    | Incr of int 
+    | Seed of int list
+
+let eventSourcedIncrementer (eventStore:IEventStore) =
+    Actor.spawn Actor.Options.Default (fun actor -> 
+        let log = (actor :?> Actor.T<Messages>).Log
+        let rec loopWithState (currentCount:int) = 
+            async {
+                let! (a,_) = actor.Receive()
+                match a with
+                | Incr a ->
+                    log.Debug(sprintf "Incremented count by %d" a, None)
+                    let newState = currentCount + a
+                    eventStore.Store(actor.Id, a)
+                    log.Debug (sprintf "Current state %d" newState, None)
+                    return! loopWithState newState
+                | Seed a -> 
+                    return! loopWithState (a |> List.fold (+) currentCount)    
+            }
+        loopWithState 0
+    )
+
+let eventStore = new InMemoryEventStore() :> IEventStore
+
+let pIncrementer = eventSourcedIncrementer eventStore
+pIncrementer.OnRestarted |> Event.add (fun actor -> 
+                                        let events = 
+                                            eventStore.Replay(actor.Id) 
+                                            |> Async.RunSynchronously 
+                                            |> Seq.toList
+                                        actor <-- Seed events )
+
+pIncrementer <-- Incr 1
+pIncrementer <-- Incr 2
+
+pIncrementer.PostSystemMessage(SystemMessage.Restart("Just testing seeding"), None)
+
+pIncrementer <-- Incr 3
+
+(** 
+Above we are passing in a event store to store the incremental changes to the actor. We then subscribe the `OnRestarted` event. This provides
+us with a hook then query the event store and replay the events to build up the Message to reseed the actor.
 *)

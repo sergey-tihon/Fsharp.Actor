@@ -63,7 +63,6 @@ module Types =
     
     type IRemoteActor<'a> =
         inherit IActor
-    
         abstract Post : 'a * IActor option -> unit
         abstract Post : 'a -> unit
 
@@ -80,4 +79,9 @@ module Types =
         abstract CreateRemoteActor : ActorPath -> IActor
         abstract Send : ActorPath * 'a * IActor option -> unit
         abstract SendSystemMessage : ActorPath * SystemMessage * IActor option -> unit
-    
+
+    type IEventStore = 
+        abstract Store : string * 'a -> unit
+        abstract GetLatest : string -> 'a option
+        abstract Replay : string -> Async<seq<'a>>
+        abstract ReplayFrom : string * DateTimeOffset -> Async<seq<'a>>

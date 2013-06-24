@@ -7,6 +7,7 @@ module Logging =
     
     let Console =
         let write level (msg,exn : exn option) =
+            let currentColor = Console.ForegroundColor
             let msg = 
                 match exn with
                 | Some(err) ->
@@ -25,7 +26,7 @@ module Logging =
             | "error" -> Console.ForegroundColor <- ConsoleColor.Red
             | _ -> Console.ForegroundColor <- ConsoleColor.White 
             Console.WriteLine(msg)
-            Console.ForegroundColor <- ConsoleColor.White
+            Console.ForegroundColor <- currentColor
 
         { new ILogger with
             member x.Debug(msg,exn) = write "debug" (msg,exn)
