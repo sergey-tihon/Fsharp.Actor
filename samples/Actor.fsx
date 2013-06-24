@@ -7,11 +7,12 @@ open FSharp.Actor
 
 let multiplication = 
     (fun (actor:IActor<_>) ->
+        let log = (actor :?> Actor.T<int * int>).Log
         let rec loop() =
             async {
                 let! ((a,b), sender) = actor.Receive()
                 let result = a * b
-                do printfn "%A: %d * %d = %d" actor.Path a b result
+                do log.Debug(sprintf "%A: %d * %d = %d" actor.Path a b result, None)
                 return! loop()
             }
         loop()
@@ -19,11 +20,12 @@ let multiplication =
 
 let addition = 
     (fun (actor:IActor<_>) ->
+        let log = (actor :?> Actor.T<int * int>).Log
         let rec loop() =
             async {
                 let! ((a,b), sender) = actor.Receive()
                 let result = a + b
-                do printfn "%A: %d + %d = %d" actor.Path a b result
+                do log.Debug(sprintf "%A: %d + %d = %d" actor.Path a b result, None)
                 return! loop()
             }
         loop()

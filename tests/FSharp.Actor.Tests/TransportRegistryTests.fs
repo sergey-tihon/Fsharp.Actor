@@ -9,12 +9,12 @@ open FSharp.Actor.Types
 type ``Given a Transport Registry``() = 
     
     let remoteActor (address:ActorPath) = 
-        Actor.deadLetter address.AbsoluteUri :> IActor
+        Patterns.deadLetter address.AbsoluteUri
 
     let mockTransport = 
         { new ITransport with
             member x.Scheme with get() = "mock"
-            member x.CreateRemoteActor(address) = Actor.deadLetter address.AbsoluteUri :> IActor
+            member x.CreateRemoteActor(address) = Patterns.deadLetter address.AbsoluteUri
             member x.Send(_,_,_) =()
             member x.SendSystemMessage(_,_,_) =()
         }

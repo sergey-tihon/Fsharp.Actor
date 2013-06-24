@@ -23,6 +23,12 @@ module Types =
         | Shutdown of string
         | Errored of exn
         | Restarting
+        with
+            member x.IsShutdownState() = 
+                match x with
+                | Shutdown(_) -> true
+                | _ -> false
+
     
     type SupervisorMessage = 
         | ActorErrored of exn * IActor
@@ -34,7 +40,8 @@ module Types =
     and ActorMessage<'a> = 
         | Message of 'a * IActor option
 
-    and IActor = 
+    and IActor =
+         inherit IDisposable
          abstract Id : string with get
          abstract Path : ActorPath with get
          abstract Post : obj * IActor option -> unit

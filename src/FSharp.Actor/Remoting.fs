@@ -81,6 +81,7 @@ module RemoteActor =
                | None -> () 
             member x.Children with get() = children :> seq<_>
             member x.Status with get() = status
+            member x.Dispose() = ()
             
     let create remoteAddress transport options = 
         let options = { options with Path = remoteAddress }

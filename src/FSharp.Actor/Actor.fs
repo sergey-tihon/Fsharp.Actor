@@ -129,9 +129,12 @@ module Actor =
             
 
             member x.PostSystemMessage(sysMessage : SystemMessage, ?sender : IActor) =
-                   match sysMessage with
-                   | Shutdown(reason) -> shutdown x reason
-                   | Restart(reason) -> restart x reason
+                   if not <| status.IsShutdownState()
+                   then
+                        match sysMessage with
+                        | Shutdown(reason) -> shutdown x reason
+                        | Restart(reason) -> restart x reason
+                    else failwithf "Actor shutdown cannot receive messages"
 
             member x.Receive(?timeout) = 
                 async {
@@ -163,6 +166,8 @@ module Actor =
                | None -> () 
             member x.Children with get() = children :> seq<_>
             member x.Status with get() = status
+            member x.Dispose() = shutdown x "Disposed"
+                   
 
     let logEvents (logger:ILogger) (actor:IActor) =
         actor.OnRestarted |> Event.add (fun a -> logger.Debug(sprintf "%A restarted Status: %A" a a.Status, None))
