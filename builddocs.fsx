@@ -10,6 +10,6 @@ open FSharp.Literate
 
 let template = Path.Combine(__SOURCE_DIRECTORY__, "template.html")
 let sources = Path.Combine(__SOURCE_DIRECTORY__, "samples")
-let output = Path.Combine(__SOURCE_DIRECTORY__, "docs")
+let output = Path.Combine(__SOURCE_DIRECTORY__, "../fsharp.actor.pages")
 
 Literate.ProcessDirectory(sources, template, output, lineNumbers = false)

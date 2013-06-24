@@ -50,7 +50,6 @@
     <Compile Include="Remoting.fs" />
     <Compile Include="Supervisor.fs" />
     <Compile Include="Patterns.fs" />
-    <Compile Include="Hosting.fs" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>

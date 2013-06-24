@@ -14,19 +14,6 @@ module Patterns =
                 }
             loop())
 
-//    module Events = 
-//        
-//        let processor name (eventStore:IEventStore) = 
-//            Actor.spawn (Actor.Options<_>.Create(name)) (fun (actor:IActor<_>) ->
-//                let rec loop() = 
-//                    async {
-//                        let! (msg,_) = actor.Receive()
-//                        eventStore.Store(msg)
-//                        return! loop()
-//                    }
-//                loop()
-//            )
-
     module Dispatch = 
 
         let shortestQueue name (refs : seq<IActor>) =
