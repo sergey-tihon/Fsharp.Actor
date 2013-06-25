@@ -13,7 +13,7 @@ type ``Given a Actor Registry``() =
 
     [<Test>]
     member t.``I can register an actor``() =
-        let actor = Actor.deadLetter "test"
+        let actor = Patterns.deadLetter "test"
         Registry.Actor.register actor |> ignore
 
         let actual = Registry.Actor.all() 
@@ -22,7 +22,7 @@ type ``Given a Actor Registry``() =
 
     [<Test>]
     member t.``I can unregister an actor``() =
-        let actor = Actor.deadLetter "test"
+        let actor = Patterns.deadLetter "test"
         Registry.Actor.register actor |> ignore
         Registry.Actor.remove actor.Path
 
@@ -32,7 +32,7 @@ type ``Given a Actor Registry``() =
 
     [<Test>]
     member t.``I can find an actor by path``() =
-        let actors = List.init 5 (fun i -> Actor.deadLetter (sprintf "a/%d" i))
+        let actors = List.init 5 (fun i -> Patterns.deadLetter (sprintf "a/%d" i))
         actors |> List.iter (Registry.Actor.register >> ignore)
         let actual = Registry.Actor.find (Path.create "a/4")
         let expected = actors.[4]
@@ -40,7 +40,7 @@ type ``Given a Actor Registry``() =
 
     [<Test>]
     member t.``I can find an actor under a path``() =
-        let actors = List.init 5 (fun i -> Actor.deadLetter (sprintf "a/%d" i))
+        let actors = List.init 5 (fun i -> Patterns.deadLetter (sprintf "a/%d" i))
         actors |> List.iter (Registry.Actor.register >> ignore)
         let actual = Registry.Actor.findUnderPath (Path.create "a/")
         let expected = actors
@@ -48,7 +48,7 @@ type ``Given a Actor Registry``() =
 
     [<Test>]
     member t.``/ returns all of the actors``() =
-        let actors = List.init 5 (fun i -> Actor.deadLetter (sprintf "a/%d" i))
+        let actors = List.init 5 (fun i -> Patterns.deadLetter (sprintf "a/%d" i))
         actors |> List.iter (Registry.Actor.register >> ignore)
         let actual = Registry.Actor.findUnderPath (Path.create "/")
         let expected = actors

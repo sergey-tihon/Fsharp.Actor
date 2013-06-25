@@ -82,9 +82,9 @@ module Actor =
     
         and restart (actor:IActor<'a>) reason =
             lock stateChangeSync (fun _ ->
+                setStatus ActorStatus.Restarting
                 preRestart.Trigger(actor :> IActor)
                 shutdown actor (sprintf "Restarting: %s" reason)
-                setStatus ActorStatus.Restarting
                 start actor reason 
                 onRestarted.Trigger(actor :> IActor)
             )
@@ -97,6 +97,7 @@ module Actor =
         override x.GetHashCode() = (x :> IActor).Id.GetHashCode()
     
         member x.Log with get() = options.Logger
+        member x.Options with get() = options
         
         interface IActor<'a> with
             
