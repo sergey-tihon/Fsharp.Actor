@@ -13,15 +13,27 @@ module Actor =
     type InvalidSupervisorException(msg) = 
         inherit Exception(msg)
 
+    type ShutdownPolicy =
+        | Cascade 
+        | Selective of (IActor -> bool)
+        | Default
+
+    type RestartPolicy = 
+        | Cascade 
+        | Selective of (IActor -> bool)
+        | Default
+
     type Options<'a> = {
         Id : string
         Mailbox : IMailbox<ActorMessage<'a>>
         Supervisor : IActor<SupervisorMessage> option
         Logger : ILogger
         Path : ActorPath
+        ShutdownPolicy : ShutdownPolicy
+        RestartPolicy : RestartPolicy
     }
     with 
-        static member Create(?id, ?mailbox, ?supervisor, ?logger, ?address) = 
+        static member Create(?id, ?mailbox, ?supervisor, ?logger, ?address, ?shutdownPolicy, ?restartPolicy) = 
             let logger = defaultArg logger Logging.Console
             let id = defaultArg id (Guid.NewGuid().ToString())
             {
@@ -30,6 +42,8 @@ module Actor =
                 Supervisor = supervisor
                 Logger = logger
                 Path = defaultArg address (Path.create id)
+                ShutdownPolicy = defaultArg shutdownPolicy ShutdownPolicy.Default
+                RestartPolicy = defaultArg restartPolicy RestartPolicy.Default
             }
         static member Default = Options<'a>.Create()
     
@@ -54,7 +68,7 @@ module Actor =
            async {
                  try
                     do! computation actor
-                    return shutdown true actor (ActorStatus.Shutdown("graceful shutdown"))
+                    return shutdown actor (ActorStatus.Shutdown("graceful shutdown"))
                  with e ->
                     do! handleError actor e
            }
@@ -66,17 +80,25 @@ module Actor =
                 | Some(supervisor) -> 
                     supervisor.Post(SupervisorMessage.ActorErrored(err, actor), Some (actor :> IActor))
                 | None ->
-                    shutdown true actor (ActorStatus.Shutdown(sprintf "An exception was handled\r\n%A" err))
+                    shutdown actor (ActorStatus.Shutdown(sprintf "An exception was handled\r\n%A" err))
                 return ()
             }
     
-        and shutdown includeChildren (actor:IActor<'a>) status =
+        and shutdown (actor:IActor<'a>) status =
             lock stateChangeSync (fun _ ->
                 preStop.Trigger(actor :> IActor)
                 cts.Cancel()
                 setStatus status
                 cts <- null
-                if includeChildren then children |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status))
+                match options.ShutdownPolicy with
+                | ShutdownPolicy.Default -> ()
+                | ShutdownPolicy.Cascade -> 
+                       children 
+                       |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
+                | ShutdownPolicy.Selective(predicate) -> 
+                       children 
+                       |> Seq.filter predicate
+                       |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
                 onStopped.Trigger(actor :> IActor)
                 )
     
@@ -92,7 +114,18 @@ module Actor =
             lock stateChangeSync (fun _ ->
                 setStatus ActorStatus.Restarting
                 preRestart.Trigger(actor :> IActor)
-                shutdown false actor (ActorStatus.Restarting)
+                cts.Cancel()
+                setStatus status
+                cts <- null
+                match options.RestartPolicy with
+                | RestartPolicy.Default -> ()
+                | RestartPolicy.Cascade -> 
+                       children 
+                       |> Seq.iter (fun x -> x <!- Restart(sprintf "Parent %s restarting" actor.Id)) 
+                | RestartPolicy.Selective(predicate) -> 
+                       children 
+                       |> Seq.filter predicate
+                       |> Seq.iter (fun x -> x <!- Restart(sprintf "Parent %s restarting" actor.Id)) 
                 start actor reason 
                 onRestarted.Trigger(actor :> IActor)
             )
@@ -141,7 +174,7 @@ module Actor =
                    if not <| status.IsShutdownState()
                    then
                         match sysMessage with
-                        | Shutdown(reason) -> shutdown true x (ActorStatus.Shutdown(reason))
+                        | Shutdown(reason) -> shutdown x (ActorStatus.Shutdown(reason))
                         | Restart(reason) -> restart x reason
                     else raise(UnableToDeliverMessageException (sprintf  "Actor (%A) cannot receive system messages" status))
 
@@ -175,7 +208,7 @@ module Actor =
                | None -> () 
             member x.Children with get() = children :> seq<_>
             member x.Status with get() = status
-            member x.Dispose() = shutdown true x (ActorStatus.Disposed)
+            member x.Dispose() = shutdown x (ActorStatus.Disposed)
                    
 
     let logEvents (logger:ILogger) (actor:IActor) =

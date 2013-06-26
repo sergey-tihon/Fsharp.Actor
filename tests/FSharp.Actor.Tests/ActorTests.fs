@@ -77,8 +77,29 @@ type ``Given an Actor``() =
         parent.Children |> List.ofSeq |> should equal []
 
     [<Test>]
-    member x.``Linked actors should shutdown when parent is shutdown``() = 
-        let parent = createActor (Some "Parent") delegateComp
+    member x.``Linked actors should not shutdown when parent is shutdown when shutdown policy is default``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", shutdownPolicy = Actor.ShutdownPolicy.Default)) delegateComp |> Actor.start
+        let child = createActor (Some "Child") delegateComp
+        parent.Link(child) 
+        parent <!- Shutdown("Shutting down")
+        child.Status.IsShutdownState() |> should be False
+
+    [<Test>]
+    member x.``Only some Linked actors should be shutdown when parent is shutdown when shutdown policy is selective``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", 
+                                                         shutdownPolicy = Actor.ShutdownPolicy.Selective(fun actor -> actor.Id.Contains("1")))
+                                   ) delegateComp |> Actor.start
+        let child = createActor (Some "Child") delegateComp
+        let child1 = createActor (Some "Child1") delegateComp
+        parent.Link(child) 
+        parent.Link(child1)
+        parent <!- Shutdown("Shutting down")
+        child.Status.IsShutdownState() |> should be False
+        child1.Status.IsShutdownState() |> should be True
+
+    [<Test>]
+    member x.``Linked actors should shutdown when parent is shutdown when shutdown policy is cascade``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", shutdownPolicy = Actor.ShutdownPolicy.Cascade)) delegateComp |> Actor.start
         let child = createActor (Some "Child") delegateComp
         parent.Link(child) 
         parent <!- Shutdown("Shutting down")
@@ -88,7 +109,7 @@ type ``Given an Actor``() =
     member x.``I should not be able to send a message to an actor that is shutdown``() = 
         let actor = createActor (None) delegateComp
         actor <!- Shutdown("")
-        Assert.Throws<Exception>((fun _ -> actor <-- (fun (_:IActor)-> ())), """Cannot send message actor status invalid Shutdown("")""") |> ignore
+        Assert.Throws<Actor.UnableToDeliverMessageException>((fun _ -> actor <-- (fun (_:IActor)-> ())), """Cannot send message actor status invalid Shutdown("")""") |> ignore
     
     [<Test>]
     member x.``Spawning an actor should register the actor``() = 
