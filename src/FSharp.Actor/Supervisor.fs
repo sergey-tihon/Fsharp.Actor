@@ -40,8 +40,7 @@ module Supervisor =
                 ActorOptions = defaultArg actorOptions (Actor.Options<SupervisorMessage>.Default)
             }
 
-    let spawn options = 
-        let computation (actor:IActor<SupervisorMessage>) = 
+    let private defaultHandler (options:Options) (actor:IActor<SupervisorMessage>) =
             let rec supervisorLoop (restarts:Map<string,int>) = 
                 async {
                     let! (msg, sender) = actor.Receive()
@@ -66,7 +65,18 @@ module Supervisor =
                 }
             supervisorLoop Map.empty
 
-        Actor.spawn options.ActorOptions computation
+
+    let spawn (options:Options) supervisorLoop = 
+        Actor.spawn { options.ActorOptions with Id = "supervisor-" + options.ActorOptions.Id } (supervisorLoop options)
+
+    let create (options:Options) supervisorLoop = 
+        Actor.create { options.ActorOptions with Id = "supervisor-" + options.ActorOptions.Id } (supervisorLoop options)
+
+    let spawnDefault options = 
+        spawn options defaultHandler
+
+    let createDefault options = 
+        create options defaultHandler
 
     let superviseAll (actors:seq<IActor>) sup = 
         actors |> Seq.iter (fun a -> a.Watch(sup))

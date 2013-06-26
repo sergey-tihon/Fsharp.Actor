@@ -67,12 +67,17 @@ module Registry =
             | [] -> None
             | a -> a |> List.head |> Some
 
+        let remove (address:Uri) = 
+            actors := Trie.remove (Path.keys address) !actors
+
         let register (actor:IActor) = 
             actors := Trie.add (Path.keys actor.Path) actor !actors
             actor
+        
+        let unregister (actor:IActor) = 
+            remove actor.Path
 
-        let remove (address:Uri) = 
-            actors := Trie.remove (Path.keys address) !actors
+
 
 [<AutoOpen>]
 module Operators =

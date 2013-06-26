@@ -21,12 +21,14 @@ module Types =
     type ActorStatus = 
         | Running
         | Shutdown of string
+        | Disposed
         | Errored of exn
         | Restarting
         with
             member x.IsShutdownState() = 
                 match x with
                 | Shutdown(_) -> true
+                | Disposed -> true
                 | _ -> false
 
     

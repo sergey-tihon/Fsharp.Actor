@@ -28,7 +28,7 @@ module Actor =
         static member Default = Options<'a>.Create()
     
     type T<'a>internal(computation : IActor<'a> -> Async<unit>, ?options) as self =
-        let mutable status = ActorStatus.Shutdown("")
+        let mutable status = ActorStatus.Shutdown("Not yet started")
         let mutable cts = new CancellationTokenSource()  
         let mutable options = defaultArg options (Options<'a>.Create())
         let preStart = new Event<IActor>()
@@ -57,18 +57,19 @@ module Actor =
             async {
                 match options.Supervisor with
                 | Some(supervisor) -> 
-                    supervisor.Post(SupervisorMessage.ActorErrored(err, actor), None)
+                    supervisor.Post(SupervisorMessage.ActorErrored(err, actor), Some (actor :> IActor))
                 | None ->
-                    shutdown actor (sprintf "An exception was handled\r\n%A" err)
+                    shutdown true actor (ActorStatus.Shutdown(sprintf "An exception was handled\r\n%A" err))
                 return ()
             }
     
-        and shutdown (actor:IActor<'a>) reason =
+        and shutdown includeChildren (actor:IActor<'a>) status =
             lock stateChangeSync (fun _ ->
                 preStop.Trigger(actor :> IActor)
                 cts.Cancel()
-                setStatus <| ActorStatus.Shutdown(reason)
+                setStatus status
                 cts <- null
+                if includeChildren then children |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status))
                 onStopped.Trigger(actor :> IActor)
                 )
     
@@ -84,7 +85,7 @@ module Actor =
             lock stateChangeSync (fun _ ->
                 setStatus ActorStatus.Restarting
                 preRestart.Trigger(actor :> IActor)
-                shutdown actor (sprintf "Restarting: %s" reason)
+                shutdown false actor (ActorStatus.Restarting)
                 start actor reason 
                 onRestarted.Trigger(actor :> IActor)
             )
@@ -124,7 +125,7 @@ module Actor =
             member x.Post(msg : 'a, ?sender) =
                 if status = ActorStatus.Running
                 then options.Mailbox.Post(Message(msg, sender))
-                else failwithf "Cannot send message actor status invalid %A" status
+                else failwithf "Actor (%A) cannot receive messages" status
     
             member x.Post(msg : 'a) = (x :> IActor<'a>).Post(msg, Option<IActor>.None)
             
@@ -133,9 +134,9 @@ module Actor =
                    if not <| status.IsShutdownState()
                    then
                         match sysMessage with
-                        | Shutdown(reason) -> shutdown x reason
+                        | Shutdown(reason) -> shutdown true x (ActorStatus.Shutdown(reason))
                         | Restart(reason) -> restart x reason
-                    else failwithf "Actor shutdown cannot receive messages"
+                    else failwithf "Actor (%A) cannot receive system messages" status
 
             member x.Receive(?timeout) = 
                 async {
@@ -167,7 +168,7 @@ module Actor =
                | None -> () 
             member x.Children with get() = children :> seq<_>
             member x.Status with get() = status
-            member x.Dispose() = shutdown x "Disposed"
+            member x.Dispose() = shutdown true x (ActorStatus.Disposed)
                    
 
     let logEvents (logger:ILogger) (actor:IActor) =
@@ -186,13 +187,22 @@ module Actor =
     let create (options:Options<_>) computation = 
         (new T<_>(computation, options) :> IActor<_>)
         |> logEvents options.Logger
+        
 
     let register actor = 
-        Registry.Actor.register actor 
+        Registry.Actor.register actor
+
+    let unregister actor = 
+        Registry.Actor.unregister actor
+
+    let unregisterOnShutdown (actor:IActor) = 
+        actor.OnStopped |> Event.add (Registry.Actor.unregister)
+        actor
 
     let spawn (options:Options<_>) computation =
         create options computation
         |> register
+        |> unregisterOnShutdown
         |> start
 
     let supervisedBy sup (actor:IActor) = 
@@ -202,6 +212,9 @@ module Actor =
     let link (linkees:seq<IActor>) (actor:IActor) =
         Seq.iter actor.Link linkees
         actor
+
+    let createLinked options linkees computation =
+        link linkees (create options computation)
 
     let spawnLinked options linkees computation =
         link linkees (spawn options computation)
