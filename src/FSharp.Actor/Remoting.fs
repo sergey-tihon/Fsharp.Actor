@@ -72,7 +72,7 @@ module RemoteActor =
                 | :? IActor<SupervisorMessage> as sup -> 
                     options <- { options with Supervisor = Some sup }
                     supervisor.Link(x)
-                | _ -> failwithf "The IActor passed to watch must be of type IActor<SupervisorMessage>"
+                | _ -> raise <| InvalidSupervisorException "The IActor passed to watch must be of type IActor<SupervisorMessage>"
             member x.UnWatch() =
                match options.Supervisor with
                | Some(sup) -> 

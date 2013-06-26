@@ -6,6 +6,12 @@ open FSharp.Actor
 open FSharp.Actor.Types
 
 module Actor = 
+    
+    type UnableToDeliverMessageException(msg) = 
+        inherit Exception(msg)
+
+    type InvalidSupervisorException(msg) = 
+        inherit Exception(msg)
 
     type Options<'a> = {
         Id : string
@@ -126,7 +132,7 @@ module Actor =
             member x.Post(msg : 'a, ?sender) =
                 if status = ActorStatus.Running
                 then options.Mailbox.Post(Message(msg, sender))
-                else failwithf "Actor (%A) cannot receive messages" status
+                else raise(UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages" status))
     
             member x.Post(msg : 'a) = (x :> IActor<'a>).Post(msg, Option<IActor>.None)
             
@@ -137,7 +143,7 @@ module Actor =
                         match sysMessage with
                         | Shutdown(reason) -> shutdown true x (ActorStatus.Shutdown(reason))
                         | Restart(reason) -> restart x reason
-                    else failwithf "Actor (%A) cannot receive system messages" status
+                    else raise(UnableToDeliverMessageException (sprintf  "Actor (%A) cannot receive system messages" status))
 
             member x.Receive(?timeout) = 
                 async {
@@ -160,7 +166,7 @@ module Actor =
                 | :? IActor<SupervisorMessage> as sup -> 
                     options <- { options with Supervisor = Some sup }
                     supervisor.Link(x)
-                | _ -> failwithf "The IActor passed to watch must be of type IActor<SupervisorMessage>"
+                | _ -> raise(InvalidSupervisorException "The IActor passed to watch must be of type IActor<SupervisorMessage>")
             member x.UnWatch() =
                match options.Supervisor with
                | Some(sup) -> 
