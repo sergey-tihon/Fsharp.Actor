@@ -48,6 +48,7 @@ module Actor =
            async {
                  try
                     do! computation actor
+                    return shutdown true actor (ActorStatus.Shutdown("graceful shutdown"))
                  with e ->
                     do! handleError actor e
            }
