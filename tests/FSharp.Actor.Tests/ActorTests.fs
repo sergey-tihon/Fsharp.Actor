@@ -6,6 +6,10 @@ open FsUnit
 open FSharp.Actor
 open System.Threading
 
+type RequestReply = 
+    | Add of int
+    | Reply of IReplyChannel<int list>
+
 [<TestFixture; Category("Unit")>]
 type ``Given an Actor``() = 
 
@@ -20,6 +24,30 @@ type ``Given an Actor``() =
             loop()
         )
 
+    let statefulComp = 
+        (fun (actor:IActor<_>) -> 
+            let rec loop store = 
+                async { 
+                    let! (msg, _) = actor.Receive()
+                    return! loop (msg :: store)
+                }
+            loop []
+        )
+
+    let requestReply = 
+        (fun (actor:IActor<_>) -> 
+            let rec loop store = 
+                async {
+                    let! (msg, _) = actor.Receive()
+                    match msg with
+                    | Add(v) -> return! loop (v :: store)
+                    | Reply(reply) -> 
+                        reply.Reply(store)
+                        return! loop store
+                }
+            loop []
+        )
+
     let createActor name comp = 
         Actor.create (Actor.Options.Create(?id = name)) comp |> Actor.start 
     
@@ -31,6 +59,14 @@ type ``Given an Actor``() =
         actor.Post((fun (_:IActor) -> wasCalled := true; are.Set() |> ignore), None)
         are.WaitOne() |> ignore
         !wasCalled |> should equal true
+
+    [<Test>]
+    member x.``I can send a message and get a reply``() = 
+        use actor = (createActor None requestReply :?> IActor<_>)
+        actor <-- Add(2)
+        actor <-- Add(7)
+        let result = actor.PostAndTryReply((fun r -> Reply(r)), None).Value
+        result |> should equal [7;2]
 
     [<Test>]
     member x.``I can shutdown the actor with a message``() = 
@@ -154,5 +190,51 @@ type ``Given an Actor``() =
         actor.Post((fun (_:IActor) -> raise(error) |> ignore), None)
         are.WaitOne() |> ignore
         !wasHandled |> should be True
+
+    [<Test>]
+    member x.``Linked actors should not restart when parent is restarted when restart policy is default``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", restartPolicy = Actor.RestartPolicy.Default)) requestReply |> Actor.start
+        let child = (createActor (Some "Child") requestReply) :?> IActor<RequestReply>
+        parent.Link(child) 
+        child <-- Add(2)
+        child <-- Add(7)
+        parent <!- Restart("Restart")
+        child <-- Add(5)
+        let result = child.PostAndTryReply((fun r -> Reply(r)), None)
+        result |> should equal (Some [5; 7 ;2])
+
+    [<Test>]
+    member x.``Only some Linked actors should be restarted when parent is restarted when restart policy is selective``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", 
+                                                         restartPolicy = Actor.RestartPolicy.Selective(fun actor -> actor.Id.Contains("1")))
+                                   ) requestReply |> Actor.start
+        let child = (createActor (Some "Child") requestReply) :?> IActor<RequestReply>
+        let child1 = (createActor (Some "Child1") requestReply) :?> IActor<RequestReply>
+        parent.Link(child) 
+        parent.Link(child1)
+        [child; child1] <-* Add(2)
+        [child; child1] <-* Add(7)
+        Thread.Sleep(50)
+        parent <!- Restart("Restart")
+        [child; child1] <-* Add(5)
+        let result1 = child1 <-!> (fun r -> Reply(r))
+        let result = child <-!> (fun r -> Reply(r))
+        result1 |> should equal (Some [5])
+        result |> should equal (Some [5; 7 ;2])
+        
+
+    [<Test>]
+    member x.``Linked actors should restart when parent is restart when restart policy is cascade``() = 
+        let parent = Actor.create (Actor.Options.Create("Parent", restartPolicy = Actor.RestartPolicy.Cascade)) requestReply |> Actor.start
+        let child = (createActor (Some "Child") requestReply) :?> IActor<RequestReply>
+        parent.Link(child) 
+        child <-- Add(2)
+        child <-- Add(7)
+        Thread.Sleep(50)
+        parent <!- Restart("Restart")
+        child <-- Add(5)
+        let result = child <-!> (fun r -> Reply(r))
+        result |> should equal (Some [5])
+        
 
 

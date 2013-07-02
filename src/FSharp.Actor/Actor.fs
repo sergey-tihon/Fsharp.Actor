@@ -13,6 +13,10 @@ module Actor =
     type InvalidSupervisorException(msg) = 
         inherit Exception(msg)
 
+    type ReplyChannel<'Reply>(replyf : 'Reply -> unit) =
+        interface IReplyChannel<'Reply> with
+            member x.Reply(reply) = replyf(reply)
+
     type ShutdownPolicy =
         | Cascade 
         | Selective of (IActor -> bool)
@@ -168,7 +172,24 @@ module Actor =
                 else raise(UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages" status))
     
             member x.Post(msg : 'a) = (x :> IActor<'a>).Post(msg, Option<IActor>.None)
-            
+
+            member x.PostAndTryAsyncReply(msgf : (IReplyChannel<'b> -> 'a), ?timeout, ?sender) = 
+                async {
+                    let timeout = defaultArg timeout Timeout.Infinite
+                    let resultCell = new Async.ResultCell<_>()
+                    let msg = msgf (new ReplyChannel<_>(fun reply -> resultCell.RegisterResult(reply)))
+                    options.Mailbox.Post(Message(msg,sender))
+                    return resultCell.TryWaitResultSynchronously(timeout)
+                }
+
+            member x.PostAndTryAsyncReply(msgf : (IReplyChannel<'b> -> 'a), ?sender) = 
+                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, None, sender)
+
+            member x.PostAndTryReply(msgf : (IReplyChannel<'b> -> 'a), ?timeout, ?sender) = 
+                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, timeout, sender) |> Async.RunSynchronously
+
+            member x.PostAndTryReply(msgf : (IReplyChannel<'b> -> 'a), sender) = 
+                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, None, sender) |> Async.RunSynchronously
 
             member x.PostSystemMessage(sysMessage : SystemMessage, ?sender : IActor) =
                    if not <| status.IsShutdownState()

@@ -89,6 +89,11 @@ module Operators =
     let (<--) (ref:IActor) msg = ref.Post(msg, None)
     let (?<--) id msg = !*id <-* msg
 
+    let (<->) (ref:IActor) msgf = (ref :?> IActor<_>).PostAndTryAsyncReply(msgf, None)
+    let (?<->) id msgf = !!id <-> msgf
+    let (<-!>) (ref:IActor) msgf = (ref :?> IActor<_>).PostAndTryReply(msgf, None)
+    let (?<-!>) id msgf = !!id <-> msgf
+
     let (<!-) (ref:IActor) msg = ref.PostSystemMessage(msg, None)
     let (?<!-) id msg = !!id <!- msg 
 

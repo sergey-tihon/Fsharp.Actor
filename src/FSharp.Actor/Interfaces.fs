@@ -31,9 +31,12 @@ module Types =
                 | Disposed -> true
                 | _ -> false
 
+    type IReplyChannel<'a> =
+        abstract Reply : 'a -> unit
     
     type SupervisorMessage = 
         | ActorErrored of exn * IActor
+
     
     and SystemMessage = 
         | Shutdown of string
@@ -67,6 +70,10 @@ module Types =
         inherit IActor
         abstract Post : 'a * IActor option -> unit
         abstract Post : 'a -> unit
+        abstract PostAndTryReply : (IReplyChannel<'b> -> 'a) * int option * IActor option -> 'b option
+        abstract PostAndTryReply : (IReplyChannel<'b> -> 'a) * IActor option -> 'b option
+        abstract PostAndTryAsyncReply : (IReplyChannel<'b> -> 'a) * int option * IActor option -> Async<'b option>
+        abstract PostAndTryAsyncReply : (IReplyChannel<'b> -> 'a) * IActor option -> Async<'b option>
         abstract Receive : unit -> Async<'a * IActor option>
         abstract Receive : int option -> Async<'a * IActor option>
     
