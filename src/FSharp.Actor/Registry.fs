@@ -9,33 +9,6 @@ module Registry =
     type ActorNotFound(message) = 
         inherit Exception(message)
 
-    type TransportNotFound(message) = 
-        inherit Exception(message)
-    
-    module Transport = 
-        
-        let private transports : Map<string,ITransport> ref = ref Map.empty 
-
-        let all() = !transports |> Map.toSeq |> Seq.map snd |> Seq.toList
-
-        let clear() = transports := Map.empty
-
-        let tryFind id = 
-            Map.tryFind id !transports
-
-        let tryFindActorsForTransport id address =
-            match tryFind id with
-            | Some(t) -> [t.CreateRemoteActor(address)]
-            | None -> [] 
-
-        let register (transport:ITransport) = 
-            match tryFind transport.Scheme with
-            | Some _ -> failwithf "%A transport already registered" transport.Scheme
-            | None -> transports := Map.add transport.Scheme transport !transports
-
-        let remove id = 
-            transports := Map.remove id !transports
-
     module Actor = 
 
         
@@ -85,15 +58,11 @@ module Operators =
     let (!*) id = Registry.Actor.findUnderPath (Path.create id)
     let (!!) id = Registry.Actor.find (Path.create id)
 
-    let (<-*) refs msg = refs |> Seq.iter (fun (a:IActor) -> a.Post(msg, None))
-    let (<--) (ref:IActor) msg = ref.Post(msg, None)
+    let (<-*) refs msg = refs |> Seq.iter (fun (a:IActor) -> a.Post <| Message(msg, None))
+    let (<--) (ref:IActor) msg = ref.Post <| Message(msg, None)
     let (?<--) id msg = !*id <-* msg
 
-    let (<->) (ref:IActor) msgf = (ref :?> IActor<_>).PostAndTryAsyncReply(msgf, None)
+    let (<->) (ref:IActor) msgf = ref.PostAndTryAsyncReply(msgf, None, None)
     let (?<->) id msgf = !!id <-> msgf
-    let (<-!>) (ref:IActor) msgf = (ref :?> IActor<_>).PostAndTryReply(msgf, None)
+    let (<-!>) (ref:IActor) msgf = ref <-> msgf |> Async.RunSynchronously
     let (?<-!>) id msgf = !!id <-> msgf
-
-    let (<!-) (ref:IActor) msg = ref.PostSystemMessage(msg, None)
-    let (?<!-) id msg = !!id <!- msg 
-

@@ -25,6 +25,14 @@ type DefaultMailbox<'a>() =
         member this.Post(msg) = 
             inbox.Enqueue(msg)
             awaitMsg.Set() |> ignore
+        member this.PostAndTryAsyncReply<'b>(msgf : (IReplyChannel<'b> -> 'a), ?timeout, ?sender) = 
+            async {
+                let timeout = defaultArg timeout Timeout.Infinite
+                let resultCell = new Async.ResultCell<_>()
+                let msg = msgf (new Async.ReplyChannel<_>(fun reply -> resultCell.RegisterResult(reply)))
+                (this :> IMailbox<'a>).Post(msg)
+                return resultCell.TryWaitResultSynchronously(timeout)
+            }
         member this.Length with get() = inbox.Count
         member this.IsEmpty with get() = inbox.IsEmpty
         member x.Dispose() = 

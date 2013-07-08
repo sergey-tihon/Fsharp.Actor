@@ -13,10 +13,6 @@ module Actor =
     type InvalidSupervisorException(msg) = 
         inherit Exception(msg)
 
-    type ReplyChannel<'Reply>(replyf : 'Reply -> unit) =
-        interface IReplyChannel<'Reply> with
-            member x.Reply(reply) = replyf(reply)
-
     type ShutdownPolicy =
         | Cascade 
         | Selective of (IActor -> bool)
@@ -29,8 +25,8 @@ module Actor =
 
     type Options<'a> = {
         Id : string
-        Mailbox : IMailbox<ActorMessage<'a>>
-        Supervisor : IActor<SupervisorMessage> option
+        Mailbox : IMailbox<Message<'a>>
+        Supervisor : IActor option
         Logger : ILogger
         Path : ActorPath
         ShutdownPolicy : ShutdownPolicy
@@ -42,7 +38,7 @@ module Actor =
             let id = defaultArg id (Guid.NewGuid().ToString())
             {
                 Id = id
-                Mailbox = defaultArg mailbox (new DefaultMailbox<ActorMessage<'a>>() :> IMailbox<ActorMessage<'a>>)
+                Mailbox = defaultArg mailbox (new DefaultMailbox<Message<'a>>() :> IMailbox<Message<'a>>)
                 Supervisor = supervisor
                 Logger = logger
                 Path = defaultArg address (Path.create id)
@@ -51,7 +47,7 @@ module Actor =
             }
         static member Default = Options<'a>.Create()
     
-    type T<'a>internal(computation : IActor<'a> -> Async<unit>, ?options) as self =
+    type T<'a> internal(computation : IActor -> Async<unit>, ?options) as self =
         let mutable status = ActorStatus.Shutdown("Not yet started")
         let mutable cts = new CancellationTokenSource()  
         let mutable options = defaultArg options (Options<'a>.Create())
@@ -67,7 +63,7 @@ module Actor =
         let setStatus newStatus = 
             status <- newStatus
     
-        let rec run (actor:IActor<'a>) = 
+        let rec run (actor:IActor) = 
            setStatus ActorStatus.Running
            async {
                  try
@@ -77,20 +73,20 @@ module Actor =
                     do! handleError actor e
            }
 
-        and handleError (actor:IActor<'a>) (err:exn) =
+        and handleError (actor:IActor) (err:exn) =
             setStatus <| ActorStatus.Errored(err)
             async {
                 match options.Supervisor with
                 | Some(supervisor) -> 
-                    supervisor.Post(SupervisorMessage.ActorErrored(err, actor), Some (actor :> IActor))
+                    supervisor.Post(Errored(err, actor))
                 | None ->
                     shutdown actor (ActorStatus.Shutdown(sprintf "An exception was handled\r\n%A" err))
                 return ()
             }
     
-        and shutdown (actor:IActor<'a>) status =
+        and shutdown (actor:IActor) status =
             lock stateChangeSync (fun _ ->
-                preStop.Trigger(actor :> IActor)
+                preStop.Trigger(actor)
                 cts.Cancel()
                 setStatus status
                 cts <- null
@@ -98,26 +94,26 @@ module Actor =
                 | ShutdownPolicy.Default -> ()
                 | ShutdownPolicy.Cascade -> 
                        children 
-                       |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
+                       |> Seq.iter (fun x -> x <-- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
                 | ShutdownPolicy.Selective(predicate) -> 
                        children 
                        |> Seq.filter predicate
-                       |> Seq.iter (fun x -> x <!- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
-                onStopped.Trigger(actor :> IActor)
+                       |> Seq.iter (fun x -> x <-- Shutdown(sprintf "Parent %s shutdown with status %A" actor.Id status)) 
+                onStopped.Trigger(actor)
                 )
     
-        and start (actor:IActor<'a>) reason = 
+        and start (actor:IActor) reason = 
             lock stateChangeSync (fun _ ->
-                preStart.Trigger(actor :> IActor)  
+                preStart.Trigger(actor)  
                 cts <- new CancellationTokenSource()
                 Async.Start(run self, cts.Token)
-                onStart.Trigger(actor :> IActor)
+                onStart.Trigger(actor)
             )
     
-        and restart (actor:IActor<'a>) reason =
+        and restart (actor:IActor) reason =
             lock stateChangeSync (fun _ ->
                 setStatus ActorStatus.Restarting
-                preRestart.Trigger(actor :> IActor)
+                preRestart.Trigger(actor)
                 cts.Cancel()
                 setStatus status
                 cts <- null
@@ -125,13 +121,13 @@ module Actor =
                 | RestartPolicy.Default -> ()
                 | RestartPolicy.Cascade -> 
                        children 
-                       |> Seq.iter (fun x -> x <!- Restart(sprintf "Parent %s restarting" actor.Id)) 
+                       |> Seq.iter (fun x -> x <-- Restart(sprintf "Parent %s restarting" actor.Id)) 
                 | RestartPolicy.Selective(predicate) -> 
                        children 
                        |> Seq.filter predicate
-                       |> Seq.iter (fun x -> x <!- Restart(sprintf "Parent %s restarting" actor.Id)) 
+                       |> Seq.iter (fun x -> x <-- Restart(sprintf "Parent %s restarting" actor.Id)) 
                 start actor reason 
-                onRestarted.Trigger(actor :> IActor)
+                onRestarted.Trigger(actor)
             )
         
         override x.ToString() =  (x :> IActor).Id
@@ -144,7 +140,7 @@ module Actor =
         member x.Log with get() = options.Logger
         member x.Options with get() = options
         
-        interface IActor<'a> with
+        interface IActor with
             
             [<CLIEvent>]
             member x.OnRestarted = onRestarted.Publish
@@ -165,68 +161,33 @@ module Actor =
             member x.Start() = 
                 start self "Initial Startup"
 
-            member x.Post(msg : obj, ?sender:IActor) = (x :> IActor<'a>).Post(msg :?> 'a, sender)
-            member x.Post(msg : 'a, ?sender) =
-                if status = ActorStatus.Running
-                then options.Mailbox.Post(Message(msg, sender))
+            member x.Post(msg : Message<'a>) =
+                if not <| status.IsShutdownState()
+                then 
+                    match msg with
+                    | Message(_,_) as a ->
+                        options.Mailbox.Post(msg)
+                    | Errored(_,_) as a -> ()
+                    | Shutdown(reason) -> shutdown x (ActorStatus.Shutdown(reason))
+                    | Restart(reason) -> restart x reason
+                    | Link(actor) -> children.Add(actor)
+                    | UnLink(actor) -> children.Remove(actor) |> ignore
+                    | Watch(supervisor) -> 
+                        options <- { options with Supervisor = Some supervisor }
+                        supervisor.Post(Link(x))
+                    | UnWatch -> 
+                         match options.Supervisor with
+                         | Some(sup) -> 
+                             options <- { options with Supervisor = None }
+                             sup.Post(UnLink(x))
+                         | None -> () 
                 else raise(UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages" status))
     
-            member x.Post(msg : 'a) = (x :> IActor<'a>).Post(msg, Option<IActor>.None)
+            member x.PostAndTryAsyncReply(msgf : (IReplyChannel<'b> -> Message<_>), ?timeout) = 
+                if not <| status.IsShutdownState()
+                then options.Mailbox.PostAndTryAsyncReply(msgf, timeout)
+                else raise(UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages" status))
 
-            member x.PostAndTryAsyncReply(msgf : (IReplyChannel<'b> -> 'a), ?timeout, ?sender) = 
-                async {
-                    let timeout = defaultArg timeout Timeout.Infinite
-                    let resultCell = new Async.ResultCell<_>()
-                    let msg = msgf (new ReplyChannel<_>(fun reply -> resultCell.RegisterResult(reply)))
-                    options.Mailbox.Post(Message(msg,sender))
-                    return resultCell.TryWaitResultSynchronously(timeout)
-                }
-
-            member x.PostAndTryAsyncReply(msgf : (IReplyChannel<'b> -> 'a), ?sender) = 
-                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, None, sender)
-
-            member x.PostAndTryReply(msgf : (IReplyChannel<'b> -> 'a), ?timeout, ?sender) = 
-                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, timeout, sender) |> Async.RunSynchronously
-
-            member x.PostAndTryReply(msgf : (IReplyChannel<'b> -> 'a), sender) = 
-                (x :> IActor<'a>).PostAndTryAsyncReply(msgf, None, sender) |> Async.RunSynchronously
-
-            member x.PostSystemMessage(sysMessage : SystemMessage, ?sender : IActor) =
-                   if not <| status.IsShutdownState()
-                   then
-                        match sysMessage with
-                        | Shutdown(reason) -> shutdown x (ActorStatus.Shutdown(reason))
-                        | Restart(reason) -> restart x reason
-                    else raise(UnableToDeliverMessageException (sprintf  "Actor (%A) cannot receive system messages" status))
-
-            member x.Receive(?timeout) = 
-                async {
-                    let! msg = options.Mailbox.Receive(timeout, cts.Token)
-                    match msg with
-                    | Message(msg, sender) -> return msg, sender
-                }
-    
-            member x.Receive() = 
-                async {
-                    let! msg = options.Mailbox.Receive(None, cts.Token)
-                    match msg with
-                    | Message(msg, sender) -> return msg, sender
-                }
-    
-            member x.Link(actorRef) = children.Add(actorRef)
-            member x.UnLink(actorRef) = children.Remove(actorRef) |> ignore
-            member x.Watch(supervisor) = 
-                match supervisor with
-                | :? IActor<SupervisorMessage> as sup -> 
-                    options <- { options with Supervisor = Some sup }
-                    supervisor.Link(x)
-                | _ -> raise(InvalidSupervisorException "The IActor passed to watch must be of type IActor<SupervisorMessage>")
-            member x.UnWatch() =
-               match options.Supervisor with
-               | Some(sup) -> 
-                   options <- { options with Supervisor = None }
-                   sup.UnLink(x)
-               | None -> () 
             member x.Children with get() = children :> seq<_>
             member x.Status with get() = status
             member x.Dispose() = shutdown x (ActorStatus.Disposed)
@@ -246,7 +207,7 @@ module Actor =
         actor
     
     let create (options:Options<_>) computation = 
-        (new T<_>(computation, options) :> IActor<_>)
+        (new T<_>(computation, options) :> IActor)
         |> logEvents options.Logger
         
 
@@ -267,11 +228,11 @@ module Actor =
         |> start
 
     let supervisedBy sup (actor:IActor) = 
-        actor.Watch(sup)
+        actor.Post(Watch(sup))
         actor
 
     let link (linkees:seq<IActor>) (actor:IActor) =
-        Seq.iter actor.Link linkees
+        Seq.iter (fun a -> actor.Post(Link(a))) linkees
         actor
 
     let createLinked options linkees computation =
@@ -281,8 +242,8 @@ module Actor =
         link linkees (spawn options computation)
 
     let unlink linkees (actor:IActor) =
-        linkees |> Seq.iter (fun (l:IActor) -> actor.UnLink(l))
+        linkees |> Seq.iter (fun (l:IActor) -> actor.Post(UnLink(l)))
         actor
 
     let unwatch (actors:seq<IActor>) = 
-        actors |> Seq.iter (fun a -> a.UnWatch())
+        actors |> Seq.iter (fun a -> a.Post(UnWatch))

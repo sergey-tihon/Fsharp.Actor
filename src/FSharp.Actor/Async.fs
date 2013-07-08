@@ -1,5 +1,8 @@
-﻿module Async
+﻿namespace FSharp.Actor
+
+module Async = 
     
+    open FSharp.Actor    
     open System.Threading.Tasks
 
     type ResultCell<'a>() =
@@ -26,4 +29,8 @@
                 if source.Task.Wait(timeout) then 
                     Some source.Task.Result
                 else None
+
+    type ReplyChannel<'Reply>(replyf : 'Reply -> unit) =
+        interface IReplyChannel<'Reply> with
+            member x.Reply(reply) = replyf(reply)
 
