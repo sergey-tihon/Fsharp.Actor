@@ -19,16 +19,8 @@ module Registry =
         let clear() = 
             actors := Trie.empty
         
-        let private searchLocal address = 
-             Trie.subtrie (Path.keys address) !actors |> Trie.values
-
         let findUnderPath (address : ActorPath) =
-             match address.Scheme with
-             | "actor" -> searchLocal address
-             | remoteScheme -> 
-                match searchLocal address with
-                | [] -> Transport.tryFindActorsForTransport remoteScheme address 
-                | a -> a 
+            Trie.subtrie (Path.keys address) !actors |> Trie.values 
 
         let find address = 
             match findUnderPath address with
