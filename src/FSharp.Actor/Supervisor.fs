@@ -1,84 +1,74 @@
 ﻿namespace FSharp.Actor
 
+open System
 open FSharp.Actor
 open FSharp.Actor.Types
 
 module Supervisor = 
 
-    module Strategy = 
+    type Message = 
+        | ActorErrored of exn * IActor
+
+    type Strategy = (exn -> IActor -> IActor -> unit)
+
+    module Strategies = 
         
-        let AlwaysFail = 
+        let AlwaysFail : Strategy = 
             (fun err (supervisor:IActor) (target:IActor) -> 
-                target.PostSystemMessage(SystemMessage.Shutdown("SupervisorStrategy:AlwaysFail"), Some supervisor)
+                target <-- SystemMessage.Shutdown("SupervisorStrategy:AlwaysFail")
             )
 
-        let OneForOne = 
+        let OneForOne : Strategy = 
            (fun err (supervisor:IActor) (target:IActor) -> 
-                target.PostSystemMessage(SystemMessage.Restart("SupervisorStrategy:OneForOne"), Some supervisor)
+                target <-- SystemMessage.Restart("SupervisorStrategy:OneForOne")
            )
            
-        let OneForAll = 
+        let OneForAll : Strategy = 
            (fun err (supervisor:IActor) (target:IActor) -> 
-                supervisor.Children 
-                |> Seq.iter (fun c -> 
-                               c.PostSystemMessage(
-                                   SystemMessage.Restart("SupervisorStrategy:OneForAll"), 
-                                           Some supervisor))
+                (supervisor :?> Actor<_>).Children 
+                |> Seq.iter (fun c -> c <-- SystemMessage.Restart("SupervisorStrategy:OneForAll"))
            )
 
-    type Options = {
-        MaxFailures : int option
-        Strategy : (exn -> IActor<SupervisorMessage> -> IActor -> unit)
-        ActorOptions : Actor.Options<SupervisorMessage>
-    }
-    with
-        static member Default = Options.Create()
-        static member Create(?maxFail, ?strategy, ?actorOptions) = 
-            {
-                MaxFailures = defaultArg maxFail (Some 10)
-                Strategy = defaultArg strategy Strategy.OneForOne
-                ActorOptions = defaultArg actorOptions (Actor.Options<SupervisorMessage>.Default)
-            }
 
-    let private defaultHandler (options:Options) (actor:IActor<SupervisorMessage>) =
+    let private defaultHandler maxFailures strategy (supervisor:Actor<_>) =
             let rec supervisorLoop (restarts:Map<string,int>) = 
                 async {
-                    let! (msg, sender) = actor.Receive()
+                    let! msg = supervisor.Receive()
                     match msg with
-                    | SupervisorMessage.ActorErrored(err, targetActor) ->
-                        match restarts.TryFind(targetActor.Id), options.MaxFailures with
+                    | ActorErrored(err, targetActor) ->
+                        match restarts.TryFind(targetActor.Path.AbsoluteUri), maxFailures with
                         | Some(count), Some(maxfails) when count < maxfails -> 
-                            options.Strategy err actor targetActor                            
-                            return! supervisorLoop (Map.add targetActor.Id (count + 1) restarts)
+                            strategy err supervisor targetActor                            
+                            return! supervisorLoop (Map.add targetActor.Path.AbsoluteUri (count + 1) restarts)
                         | Some(count), Some(maxfails) -> 
-                            targetActor.PostSystemMessage(SystemMessage.Shutdown("Too many restarts"), Some(actor :> IActor))                          
-                            return! supervisorLoop (Map.add targetActor.Id (count + 1) restarts)
+                            targetActor <-- SystemMessage.Shutdown("Too many restarts")                          
+                            return! supervisorLoop (Map.add targetActor.Path.AbsoluteUri (count + 1) restarts)
                         | Some(count), None -> 
-                            options.Strategy err actor targetActor                            
-                            return! supervisorLoop (Map.add targetActor.Id (count + 1) restarts)
+                            strategy err supervisor targetActor                            
+                            return! supervisorLoop (Map.add targetActor.Path.AbsoluteUri (count + 1) restarts)
                         | None, Some(maxfails) ->
-                            options.Strategy err actor targetActor                            
-                            return! supervisorLoop (Map.add targetActor.Id 1 restarts)
+                            strategy err supervisor targetActor                            
+                            return! supervisorLoop (Map.add targetActor.Path.AbsoluteUri 1 restarts)
                         | None, None ->
-                            options.Strategy err actor targetActor                            
-                            return! supervisorLoop (Map.add targetActor.Id 1 restarts)                   
+                            strategy err supervisor targetActor                            
+                            return! supervisorLoop (Map.add targetActor.Path.AbsoluteUri 1 restarts)                 
                 }
             supervisorLoop Map.empty
 
 
-    let spawn (options:Options) supervisorLoop = 
-        Actor.spawn { options.ActorOptions with Id = "supervisor-" + options.ActorOptions.Id } (supervisorLoop options)
+    let spawn (options:ActorContext<Message>) supervisorLoop = 
+        Actor.spawn options supervisorLoop 
 
-    let create (options:Options) supervisorLoop = 
-        Actor.create { options.ActorOptions with Id = "supervisor-" + options.ActorOptions.Id } (supervisorLoop options)
+    let create (options:ActorContext<_>) supervisorLoop = 
+        Actor.create options supervisorLoop 
 
-    let spawnDefault options = 
-        spawn options defaultHandler
+    let spawnDefault options strategy maxfails = 
+        spawn options (defaultHandler maxfails strategy)
 
-    let createDefault options = 
-        create options defaultHandler
+    let createDefault options strategy maxfails = 
+        create options (defaultHandler maxfails strategy)
 
     let superviseAll (actors:seq<IActor>) sup = 
-        actors |> Seq.iter (fun a -> a.Watch(sup))
+        actors |> Seq.iter (fun a -> a <-- Watch(sup))
         sup
 

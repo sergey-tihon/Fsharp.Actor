@@ -47,14 +47,9 @@ module Registry =
 [<AutoOpen>]
 module Operators =
     
-    let (!*) id = Registry.Actor.findUnderPath (Path.create id)
-    let (!!) id = Registry.Actor.find (Path.create id)
+    let (!*) path = Registry.Actor.findUnderPath (Path.create path)
+    let (!!) path = Registry.Actor.find (Path.create path)
 
-    let (<-*) refs msg = refs |> Seq.iter (fun (a:IActor) -> a.Post <| Message(msg, None))
-    let (<--) (ref:IActor) msg = ref.Post <| Message(msg, None)
+    let (<-*) refs msg = refs |> Seq.iter (fun (a:IActor) -> a.Post <| msg)
+    let (<--) (ref:IActor) msg = ref.Post <| msg
     let (?<--) id msg = !*id <-* msg
-
-    let (<->) (ref:IActor) msgf = ref.PostAndTryAsyncReply(msgf, None, None)
-    let (?<->) id msgf = !!id <-> msgf
-    let (<-!>) (ref:IActor) msgf = ref <-> msgf |> Async.RunSynchronously
-    let (?<-!>) id msgf = !!id <-> msgf

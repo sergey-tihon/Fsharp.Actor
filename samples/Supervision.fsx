@@ -9,10 +9,10 @@ Actors can supervise other actors, if we define an actor loop that fails on a gi
 *)
 
 let err = 
-        (fun (actor:IActor<string>) ->
+        (fun (actor:Actor<string>) ->
             let rec loop() =
                 async {
-                    let! (msg,_) = actor.Receive()
+                    let! msg = actor.Receive()
                     if msg <> "fail"
                     then printfn "%s" msg
                     else failwithf "ERRRROROROR"
@@ -34,9 +34,11 @@ A supervisor will only restart the actor that has errored
 *)
 
 let oneforone = 
-    Supervisor.spawn 
-        <| Supervisor.Options.Create(actorOptions = Actor.Options.Create("OneForOne"))
-    |> Supervisor.superviseAll [Actor.spawn (Actor.Options.Create("err_0")) err]
+    Supervisor.spawnDefault 
+        <| ActorContext.Create("OneForOne")
+        <| Supervisor.Strategies.OneForOne 
+        <| Some 3
+    |> Supervisor.superviseAll [Actor.spawn (ActorContext.Create("err_0")) err]
 
 !!"err_0" <-- "fail"
 

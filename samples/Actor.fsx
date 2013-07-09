@@ -6,26 +6,26 @@ open FSharp.Actor
 *)
 
 let multiplication = 
-    (fun (actor:IActor<_>) ->
-        let log = (actor :?> Actor.T<int * int>).Log
+    (fun (actor:Actor<_>) ->
+        let log = actor.Log
         let rec loop() =
             async {
                 let! ((a,b), sender) = actor.Receive()
                 let result = a * b
-                do log.Debug(sprintf "%A: %d * %d = %d" actor.Path a b result, None)
+                do log.Debug(sprintf "%A: %d * %d = %d" actor a b result, None)
                 return! loop()
             }
         loop()
     )
 
 let addition = 
-    (fun (actor:IActor<_>) ->
-        let log = (actor :?> Actor.T<int * int>).Log
+    (fun (actor:Actor<_>) ->
+        let log = actor.Log
         let rec loop() =
             async {
                 let! ((a,b), sender) = actor.Receive()
                 let result = a + b
-                do log.Debug(sprintf "%A: %d + %d = %d" actor.Path a b result, None)
+                do log.Debug(sprintf "%A: %d + %d = %d" actor a b result, None)
                 return! loop()
             }
         loop()
@@ -33,8 +33,8 @@ let addition =
 
 let calculator = 
     [
-       Actor.spawn (Actor.Options.Create("calculator/addition")) addition
-       Actor.spawn (Actor.Options.Create("calculator/multiplication")) multiplication
+       Actor.spawn (ActorContext.Create("calculator/addition")) addition
+       Actor.spawn (ActorContext.Create("calculator/multiplication")) multiplication
     ]
 
 (**
@@ -107,11 +107,11 @@ resulting in a `KeyNotFoundException`
 We can also kill actors 
 *)
 
-calculator.[1] <!- (Shutdown("Cause I want to"))
+calculator.[1] <-- (Shutdown("Cause I want to"))
 
 (** or *)
 
-"calculator/addition" ?<!- (Shutdown("Cause I want to"))
+"calculator/addition" ?<-- (Shutdown("Cause I want to"))
 
 (**
 Sending now sending any message to the actor will result in an exception 
@@ -127,8 +127,8 @@ You can change the behaviour of actors at runtime. This achieved through mutuall
 *)
 
 let rec schizoPing = 
-    (fun (actor:IActor<_>) ->
-        let log = (actor :?> Actor.T<_>).Log
+    (fun (actor:Actor<_>) ->
+        let log = actor.Log
         let rec ping() = 
             async {
                 let! (msg,_) = actor.Receive()
@@ -145,7 +145,7 @@ let rec schizoPing =
     )
         
 
-let schizo = Actor.spawn (Actor.Options.Create("schizo")) schizoPing 
+let schizo = Actor.spawn (ActorContext.Create("schizo")) schizoPing 
 
 !!"schizo" <-- "Hello"
 
@@ -165,9 +165,9 @@ Linking an actor to another means that this actor will become a sibling of the o
 *)
 
 let child i = 
-    Actor.spawn (Actor.Options.Create(sprintf "a/child_%d" i)) 
+    Actor.spawn (ActorContext.Create(sprintf "a/child_%d" i)) 
          (fun actor ->
-             let log = (actor :?> Actor.T<_>).Log 
+             let log = actor.Log 
              let rec loop() =
                 async { 
                    let! msg = actor.Receive()
@@ -178,7 +178,7 @@ let child i =
          )
 
 let parent = 
-    Actor.spawnLinked (Actor.Options.Create "a/parent") (List.init 5 (child))
+    Actor.spawnLinked (ActorContext.Create "a/parent") (List.init 5 (child))
             (fun actor -> 
                 let rec loop() =
                   async { 
@@ -221,8 +221,8 @@ State in actors is managed by passing an extra parameter around the loops. For e
 *)
 
 let incrementer =
-    Actor.spawn Actor.Options.Default (fun actor -> 
-        let log = (actor :?> Actor.T<int>).Log
+    Actor.spawn ActorContext.Default (fun actor -> 
+        let log = actor.Log
         let rec loopWithState (currentCount:int) = 
             async {
                 let! (a,_) = actor.Receive()
@@ -234,53 +234,3 @@ let incrementer =
 
 incrementer <-- 1
 incrementer <-- 2
-
-(**
-However the if the actor dies this state is lost. We need a way of rebuilding this state. Here we can use event sourcing. We can persist the events as
-they pour into the actor then on restart replay those events. 
-*)
-
-type Messages = 
-    | Incr of int 
-    | Seed of int list
-
-let eventSourcedIncrementer (eventStore:IEventStore) =
-    Actor.spawn Actor.Options.Default (fun actor -> 
-        let log = (actor :?> Actor.T<Messages>).Log
-        let rec loopWithState (currentCount:int) = 
-            async {
-                let! (a,_) = actor.Receive()
-                match a with
-                | Incr a ->
-                    log.Debug(sprintf "Incremented count by %d" a, None)
-                    let newState = currentCount + a
-                    eventStore.Store(actor.Id, a)
-                    log.Debug (sprintf "Current state %d" newState, None)
-                    return! loopWithState newState
-                | Seed a -> 
-                    return! loopWithState (a |> List.fold (+) currentCount)    
-            }
-        loopWithState 0
-    )
-
-let eventStore = new InMemoryEventStore() :> IEventStore
-
-let pIncrementer = eventSourcedIncrementer eventStore
-pIncrementer.OnRestarted |> Event.add (fun actor -> 
-                                        let events = 
-                                            eventStore.Replay(actor.Id) 
-                                            |> Async.RunSynchronously 
-                                            |> Seq.toList
-                                        actor <-- Seed events )
-
-pIncrementer <-- Incr 1
-pIncrementer <-- Incr 2
-
-pIncrementer.PostSystemMessage(SystemMessage.Restart("Just testing seeding"), None)
-
-pIncrementer <-- Incr 3
-
-(** 
-Above we are passing in a event store to store the incremental changes to the actor. We then subscribe the `OnRestarted` event. This provides
-us with a hook then query the event store and replay the events to build up the Message to reseed the actor.
-*)

@@ -18,13 +18,13 @@ Round robin dispatch, distributes messages in a round robin fashion to its worke
 *)
 
 let createWorker i =
-    Actor.spawn (Actor.Options.Create(sprintf "workers/worker_%d" i)) (fun (actor:IActor<int>) ->
-        let log = (actor :?> Actor.T<int>).Log
+    Actor.spawn (ActorContext.Create(sprintf "workers/worker_%d" i)) (fun (actor:Actor<int>) ->
+        let log = actor.Log
         let rec loop() = 
             async {
-                let! (msg,_) = actor.Receive()
+                let! msg = actor.Receive()
                 do log.Debug(sprintf "Actor %A recieved work %d" actor msg, None)
-                do! Async.Sleep(5000)
+                do! Async.Sleep(i * 300)
                 do log.Debug(sprintf "Actor %A finshed work %d" actor msg, None)
                 return! loop()
             }
@@ -45,7 +45,7 @@ Using the workers defined above we can define another dispatcher but this time u
 dispatch strategy
 *)
 
-let sqrouter = Patterns.Dispatch.shortestQueue "workers/routers/shortestQ" workers
+let sqrouter = Patterns.Dispatch.shortestQueue<int> "workers/routers/shortestQ" workers
 
 [1..100] |> List.iter ((<--) sqrouter)
 

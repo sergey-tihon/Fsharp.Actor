@@ -46,7 +46,6 @@
     <Compile Include="ActorPath.fs" />
     <Compile Include="Registry.fs" />
     <Compile Include="Actor.fs" />
-    <Compile Include="Remoting.fs" />
     <Compile Include="Supervisor.fs" />
     <Compile Include="Patterns.fs" />
     <None Include="packages.config" />
