@@ -234,3 +234,7 @@ let incrementer =
 
 incrementer <-- 1
 incrementer <-- 2
+
+(**
+The question now remains is how do we retrieve the state contained within the actor
+*)

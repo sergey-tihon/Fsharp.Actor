@@ -3,8 +3,8 @@
 open System
 open FSharp.Actor.Types
 
-module Logging = 
-    
+module Logger = 
+
     let Console =
         let write level (msg,exn : exn option) =
             let currentColor = Console.ForegroundColor
@@ -34,3 +34,9 @@ module Logging =
             member x.Warning(msg, exn) = write "warn" (msg,exn)
             member x.Error(msg, exn) = write "error" (msg,exn) 
         }
+
+    let mutable private instance = Console
+
+    let set(logger:ILogger) = instance <- logger
+
+    let Current = instance

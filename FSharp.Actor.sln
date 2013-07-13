@@ -41,6 +41,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{DFA867
 		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Actor.ZeroMq", "src\FSharp.Actor.ZeroMq\FSharp.Actor.ZeroMq.fsproj", "{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +69,10 @@ Global
 		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

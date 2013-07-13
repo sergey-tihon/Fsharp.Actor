@@ -3,9 +3,25 @@
 open System
 open System.Collections.Concurrent
 open System.Threading
-open FSharp.Actor.Types
+open FSharp.Actor
 
-type DefaultMailbox<'a>() =
+///Messages go no where rubbish implementation at the minute but does the job
+type DeadLetterMailbox<'a>(maxLength:int) = 
+    let mutable inbox = []
+
+    interface IMailbox<'a> with  
+        member this.Receive(timeout, cancellationToken) = raise(NotImplementedException("Not implemneted for Dead Letter mailboxes"))
+        member this.Post(msg) = 
+            if maxLength = inbox.Length
+            then inbox <- [msg]
+            else inbox <- (msg :: inbox)
+        member this.Length with get() = inbox.Length
+        member this.IsEmpty with get() = inbox.IsEmpty
+        member x.Dispose() = inbox <- []
+        member x.Restart() = inbox <- []
+    
+
+type UnboundedInMemoryMailbox<'a>() =
     let mutable inbox = ConcurrentQueue<'a>()
     let awaitMsg = new AutoResetEvent(false)
 
