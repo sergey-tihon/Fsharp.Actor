@@ -10,7 +10,7 @@ let multiplication =
         let log = actor.Log
         let rec loop() =
             async {
-                let! ((a,b), sender) = actor.Receive()
+                let! (a,b) = actor.Receive()
                 let result = a * b
                 do log.Debug(sprintf "%A: %d * %d = %d" actor a b result, None)
                 return! loop()
@@ -23,7 +23,7 @@ let addition =
         let log = actor.Log
         let rec loop() =
             async {
-                let! ((a,b), sender) = actor.Receive()
+                let! (a,b) = actor.Receive()
                 let result = a + b
                 do log.Debug(sprintf "%A: %d + %d = %d" actor a b result, None)
                 return! loop()
@@ -33,45 +33,42 @@ let addition =
 
 let calculator = 
     [
-       Actor.spawn (ActorContext.Create("calculator/addition")) addition
-       Actor.spawn (ActorContext.Create("calculator/multiplication")) multiplication
+       Actor.create (ActorOptions<_>.Create("calculator/addition")) addition
+       Actor.create (ActorOptions<_>.Create("calculator/multiplication")) multiplication
     ]
+
+
 
 (**
 The above code creates two actors `calcualtor/addition` and `calculator/multiplication`
 
-    calculator/addition pre-start Status: Shutdown "Initial Startup"
-    calculator/addition started Status: Running "Initial Startup"
-    calculator/multiplication pre-start Status: Shutdown "Initial Startup"
-    calculator/multiplication started Status: Running "Initial Startup"
-    
-    val multiplication : actor:FSharp.Actor.Actor<int * int> -> Async<unit>
-    val addition : actor:FSharp.Actor.Actor<int * int> -> Async<unit>
     val calculator : FSharp.Actor.ActorRef list =
       [calculator/addition; calculator/multiplication]
 
-We can see that the actors state transitions are logged.
-
-Once we have created our actors we can be looked up by their path
-*)
-"calculator/addition" ?<-- (5,2)
-"calculator/multiplication" ?<-- (5,2)
-
-(**
-Sending both of these messages yields
-
-    actor://main-pc/calculator/addition: 5 + 2 = 7
-    actor://main-pc/calculator/multiplication: 5 * 2 = 10
-
-We can also send messages directly to actors if we have their `ActorRef`
+We can send messages directly to the actors by picking them out the list and using the `<--` operator.
+This is just an alias for the `Post` method which can be used directly aswell.
 *)
 
 calculator.[0] <-- (5,2)
+calculator.[1] <-- (5,2)
+
+
+(**
+We can also resolve actors by name. However this requires that we setup up a dispatcher. 
+
+Dispatchers are `FSharp.Actors` way of loosely sending/dispatching messages. The following code sets-up
+a dispatcher with the two actors above registered within it. 
+*)
+
+Dispatcher.set(new DisruptorBasedDispatcher(calculator, onUndeliverable = (fun msg -> Logger.Current.Error("Could not deliver message", None))))
+
+!!"calculator/addition" <-- (5,2)
+!!"calculator/multiplication" <-- (5,2)
 
 (**
 This also yields 
 
-    actor://main-pc/calculator/addition: 5 + 2 = 7
+    calculator/addition: 5 + 2 = 7
 
 Or we could have broadcast to all of the actors in that collection
 *)
@@ -81,18 +78,18 @@ calculator <-* (5,2)
 (**
 This also yields 
 
-    actor://main-pc/calculator/addition: 5 + 2 = 7
-    actor://main-pc/calculator/multiplication: 5 * 2 = 10
+    calculator/addition: 5 + 2 = 7
+    calculator/multiplication: 5 * 2 = 10
 
 We can also resolve _systems_ of actors.
 *)
-"calculator" ?<-- (5,2)
+"calculator" ?<-* (5,2)
 
 (**
 This also yields 
 
-    actor://main-pc/calculator/addition: 5 + 2 = 7
-    actor://main-pc/calculator/multiplication: 5 * 2 = 10
+    calculator/addition: 5 + 2 = 7
+    calculator/multiplication: 5 * 2 = 10
 
 However this actor wont be found because it does not exist
 *)
@@ -100,10 +97,6 @@ However this actor wont be found because it does not exist
 "calculator/addition/foo" ?<-- (5,2)
 
 (**
-resulting in a `KeyNotFoundException`
-
-    System.Collections.Generic.KeyNotFoundException: Could not find actor calculator/addition/foo  
-
 We can also kill actors 
 *)
 
@@ -131,13 +124,13 @@ let rec schizoPing =
         let log = actor.Log
         let rec ping() = 
             async {
-                let! (msg,_) = actor.Receive()
+                let! msg = actor.Receive()
                 log.Info(sprintf "(%A): %A ping" actor msg, None)
                 return! pong()
             }
         and pong() =
             async {
-                let! (msg,_) = actor.Receive()
+                let! msg = actor.Receive()
                 log.Info(sprintf "(%A): %A pong" actor msg, None)
                 return! ping()
             }
@@ -145,9 +138,9 @@ let rec schizoPing =
     )
         
 
-let schizo = Actor.spawn (ActorContext.Create("schizo")) schizoPing 
+let schizo = Actor.create (ActorOptions<_>.Create("schizo")) schizoPing 
 
-!!"schizo" <-- "Hello"
+schizo <-- "Hello"
 
 (**
 
@@ -165,7 +158,7 @@ Linking an actor to another means that this actor will become a sibling of the o
 *)
 
 let child i = 
-    Actor.spawn (ActorContext.Create(sprintf "a/child_%d" i)) 
+    Actor.create (ActorOptions<_>.Create(sprintf "a/child_%d" i)) 
          (fun actor ->
              let log = actor.Log 
              let rec loop() =
@@ -177,8 +170,9 @@ let child i =
              loop()
          )
 
-let parent = 
-    Actor.spawnLinked (ActorContext.Create "a/parent") (List.init 5 (child))
+let parent, children = 
+    let children = (List.init 5 child)
+    Actor.createLinked (ActorOptions<_>.Create "a/parent") children
             (fun actor -> 
                 let rec loop() =
                   async { 
@@ -187,33 +181,33 @@ let parent =
                       return! loop()
                   }
                 loop()    
-            ) 
+            ), children 
 
 parent <-- "Forward this to your children"
 
 (**
 This outputs
 
-    actor://main-pc/a/child_1 recieved "Forward this to your children"
-    actor://main-pc/a/child_3 recieved "Forward this to your children"
-    actor://main-pc/a/child_2 recieved "Forward this to your children"
-    actor://main-pc/a/child_4 recieved "Forward this to your children"
-    actor://main-pc/a/child_0 recieved "Forward this to your children"
+   a/child_1 recieved "Forward this to your children"
+   a/child_3 recieved "Forward this to your children"
+   a/child_2 recieved "Forward this to your children"
+   a/child_4 recieved "Forward this to your children"
+   a/child_0 recieved "Forward this to your children"
 
 We can also unlink actors
 *)
 
-Actor.unlink !*"a/child_0" parent
+Actor.unlink [children.Head] parent
 
 parent <-- "Forward this to your children"
 
 (**
 This outputs
 
-    actor://main-pc/a/child_1 recieved "Forward this to your children"
-    actor://main-pc/a/child_3 recieved "Forward this to your children"
-    actor://main-pc/a/child_2 recieved "Forward this to your children"
-    actor://main-pc/a/child_4 recieved "Forward this to your children"
+    a/child_1 recieved "Forward this to your children"
+    a/child_3 recieved "Forward this to your children"
+    a/child_2 recieved "Forward this to your children"
+    a/child_4 recieved "Forward this to your children"
 
 #State in Actors
 
@@ -221,11 +215,11 @@ State in actors is managed by passing an extra parameter around the loops. For e
 *)
 
 let incrementer =
-    Actor.spawn ActorContext.Default (fun actor -> 
+    Actor.create ActorOptions<int>.Default (fun (actor:Actor<int>) -> 
         let log = actor.Log
         let rec loopWithState (currentCount:int) = 
             async {
-                let! (a,_) = actor.Receive()
+                let! a = actor.Receive()
                 log.Debug(sprintf "Incremented count by %d" a, None) 
                 return! loopWithState (currentCount + a)
             }

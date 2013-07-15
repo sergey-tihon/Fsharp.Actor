@@ -2,6 +2,7 @@
 
 module ZeroMQ =
 
+    open System
     open ZeroMQ
     open FsCoreSerializer
     open FSharp.Actor
@@ -10,7 +11,7 @@ module ZeroMQ =
     let createContext() = 
         ZeroMQ.ZmqContext.Create()
 
-    let publisher endpoint (serialiser:ISerializer) (event:IEvent<MessageEnvelope>) =
+    let publisher endpoint (serialiser:ISerializer) (event:IEvent<ActorMessage>) =
         async {
             try
                 use ctx = createContext()
@@ -19,7 +20,7 @@ module ZeroMQ =
                 while true do
                     let! message = event |> Async.AwaitEvent
                     let msg = ZmqMessage()
-                    let header = Frame(Encoding.UTF8.GetBytes(message.Target + " ")) 
+                    let header = Frame(Encoding.UTF8.GetBytes(String.Format("{0} ",[|message.Target|]))) 
                     let payload = Frame(serialiser.Serialize(message))
                     socket.SendMessage(ZmqMessage([|header; payload|])) |> ignore
             with e -> 
@@ -42,7 +43,7 @@ module ZeroMQ =
                     if msg.FrameCount <> 1
                     then
                         let bytes = (msg.[1].Buffer) 
-                        let result = serialiser.Deserialize(bytes) :?> MessageEnvelope
+                        let result = serialiser.Deserialize(bytes) :?> ActorMessage
                         onReceived(result)
             with e -> 
                 printfn "Sub erro: %A" e

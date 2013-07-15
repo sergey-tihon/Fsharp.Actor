@@ -33,11 +33,9 @@ A supervisor strategy allows you to define the restart semantics for the actors 
 A supervisor will only restart the actor that has errored
 *)
 
-let oneforone = 
-    Supervisor.spawnDefault 
-        <| ActorContext.Create("OneForOne")
-        <| Supervisor.Strategies.OneForOne 
-        <| Some 3
+let oneforoneSupervisor = 
+    Supervisor.createDefault "Supervisor:OneForOne" Error.Strategy.OneForOne (Some 3)
+
     |> Supervisor.superviseAll [Actor.spawn (ActorContext.Create("err_0")) err]
 
 !!"err_0" <-- "fail"

@@ -5,143 +5,157 @@ open System.Threading
 open FSharp.Actor
 open FSharp.Actor.Types
 
+type ActorStatus = 
+    | NotStarted
+    | Running
+    | Stopped of string
+    | Disposed
+    | Faulted of exn
+    | Restarting
+    with
+        member x.IsShutdownState() = 
+            match x with
+            | Stopped(_) -> true
+            | Disposed -> true
+            | _ -> false
 
- type UnableToDeliverMessageException(msg) = 
-     inherit Exception(msg)
+type SystemMessage = 
+    | Shutdown of string
+    | Restart of string
+    | Link of ActorRef
+    | UnLink of ActorRef
 
- and ActorOptions<'a> = {
-     Mailbox : IMailbox<ActorMessage>
-     Path : ActorPath
-     OnShutdown : (Actor<'a> -> unit)
-     OnRestart : (Actor<'a> -> unit)
-     OnError : (Actor<'a> -> exn -> ActorRef -> unit)
- }
- with 
-     static member Create(?path, ?mailbox, ?errorPolicy, ?shutdownPolicy, ?restartPolicy) = 
-         {
-             Mailbox = defaultArg mailbox (new UnboundedInMemoryMailbox<ActorMessage>())
-             Path = (defaultArg path (Guid.NewGuid().ToString()))
-             OnShutdown = defaultArg shutdownPolicy (fun _ -> ())
-             OnRestart = defaultArg restartPolicy (fun _ -> ())
-             OnError = defaultArg errorPolicy  (fun _ _ _ -> ())
-         }
-     static member Default = ActorOptions<_>.Create()
- 
- and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self =
-     
-     let mutable status = ActorStatus.Shutdown("Not yet started")
-     let mutable cts = new CancellationTokenSource()  
-     let mutable options = defaultArg options (ActorOptions<_>.Create())
-     let children = new ResizeArray<ActorRef>()
-     let stateChangeSync = new obj()
- 
-     let setStatus newStatus =
-         status <- newStatus
- 
-     let rec run (actor:Actor<'a>) = 
-        setStatus ActorStatus.Running
+and SupervisorMessage =
+    | Errored of exn * ActorRef
+
+and ActorOptions<'a> = {
+    Mailbox : IMailbox<MessageEnvelope>
+    Path : ActorPath
+    OnStartup : (Actor<'a> -> unit) list
+    OnShutdown : (Actor<'a> -> unit) list
+    OnRestart : (Actor<'a> -> unit) list
+    OnError : (Actor<'a> -> exn -> ActorRef -> unit)
+}
+with 
+    static member Create(?path, ?mailbox, ?errorPolicy, ?startupPolicy, ?shutdownPolicy, ?restartPolicy) = 
+        {
+            Mailbox = defaultArg mailbox (new UnboundedInMemoryMailbox<MessageEnvelope>())
+            Path = (defaultArg path (Guid.NewGuid().ToString()))
+            OnStartup = defaultArg shutdownPolicy [(fun (_:Actor<'a>) -> ())]
+            OnShutdown = defaultArg shutdownPolicy [(fun (_:Actor<'a>) -> ())]
+            OnRestart = defaultArg restartPolicy [(fun (_:Actor<'a>) -> ())]
+            OnError = defaultArg errorPolicy  (fun (_:Actor<'a>) err source -> Logger.Current.Error(sprintf "Actor %A errored" source, Some err))
+        }
+    static member Default = ActorOptions<'a>.Create()
+
+and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self =
+    
+    let mutable status = ActorStatus.NotStarted
+    let mutable cts = new CancellationTokenSource()  
+    let mutable options = defaultArg options (ActorOptions<_>.Create())
+    let children = new ResizeArray<ActorRef>()
+    let stateChangeSync = new obj()
+
+    let setStatus newStatus =
+        status <- newStatus
+
+    let rec run (actor:Actor<'a>) = 
+       setStatus ActorStatus.Running
+       async {
+             try
+                do! computation actor
+                return shutdown actor (ActorStatus.Stopped("graceful shutdown"))
+             with e ->
+                do! handleError actor e
+       }
+
+    and handleError (actor:Actor<'a>) (err:exn) =
+        setStatus <| ActorStatus.Faulted(err)
         async {
-              try
-                 do! computation actor
-                 return shutdown actor (ActorStatus.Shutdown("graceful shutdown"))
-              with e ->
-                 do! handleError actor e
+            do (actor.Options.OnError actor err actor.Ref)
         }
 
-     and handleError (actor:Actor<'a>) (err:exn) =
-         setStatus <| ActorStatus.Errored(err)
-         async {
-             do actor.Options.OnError actor err actor.Ref
-             return ()
-         }
- 
-     and shutdown (actor:Actor<'a>) status =
-         lock stateChangeSync (fun _ ->
-             cts.Cancel()
-             setStatus status
-             cts <- null
-             actor.Options.OnShutdown(actor)
-             )
- 
-     and start (actor:Actor<_>) reason = 
-         lock stateChangeSync (fun _ ->
-             cts <- new CancellationTokenSource()
-             Async.Start(run actor, cts.Token)
-         )
- 
-     and restart (actor:Actor<_>) reason =
-         lock stateChangeSync (fun _ ->
-             setStatus ActorStatus.Restarting
-             cts.Cancel()
-             setStatus status
-             cts <- null
-             actor.Options.OnRestart(actor)
-             start actor reason 
-         )
+    and shutdown (actor:Actor<'a>) status =
+        lock stateChangeSync (fun _ ->
+            cts.Cancel()
+            setStatus status
+            cts <- null
+            List.iter (fun f -> f(actor)) actor.Options.OnShutdown
+            )
 
-     let ref = 
-        lazy
-            new ActorRef(options.Path, self.Post)
- 
-     member x.Log with get() = Logger.Current
-     member x.Options with get() = options
-     member x.Status with get() = status
-     member x.Children with get() = children :> seq<_>
-     
-     member x.ReceiveActorMessage(?timeout, ?token) = 
-         options.Mailbox.Receive(timeout, defaultArg token cts.Token)
+    and start (actor:Actor<_>) reason = 
+        lock stateChangeSync (fun _ ->
+            cts <- new CancellationTokenSource()
+            Async.Start(run actor, cts.Token)
+        )
 
-     member x.Receive<'a>(?timeout, ?token) = 
-         async {
-            let! msg = x.ReceiveActorMessage(?timeout = timeout, ?token = token)
-            return msg.Message |> unbox<'a>
-         }
+    and restart (actor:Actor<_>) reason =
+        lock stateChangeSync (fun _ ->
+            setStatus ActorStatus.Restarting
+            cts.Cancel()
+            setStatus status
+            cts <- null
+            List.iter (fun f -> f(actor)) actor.Options.OnRestart
+            start actor reason 
+        )
 
-     member x.Start() = start x "Initial Startup"
-     member x.Post(msg : obj) =
-         if not <| status.IsShutdownState()
-         then 
-             match msg with
-             | :? SystemMessage as sysMsg ->
-                 match sysMsg with
-                 | Shutdown(reason) -> shutdown x (ActorStatus.Shutdown(reason))
-                 | Restart(reason) -> restart x reason
-                 | Link(actor) -> children.Add(actor)
-                 | UnLink(actor) -> children.Remove(actor) |> ignore
-                 | ActorErrored(err, sender) -> x.Options.OnError x err sender
-             | :? ActorMessage as msg -> options.Mailbox.Post(msg)      
-             | :? 'a as msg -> options.Mailbox.Post(ActorMessage.Create(msg))
-             | other -> raise <| UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages of type %A expected %A" x (other.GetType()) (typeof<'a>))
-         else raise <| UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages invalid status %A" x status)
+    let ref = 
+       lazy
+           new ActorRef(options.Path, self.Post)
+   
+    override x.ToString() = ref.Value.Path
+
+    member x.Log with get() = Logger.Current
+    member x.Options with get() = options
+    member x.Status with get() = status
+    member x.Children with get() = children :> seq<_>
     
-     member x.Ref with get() = ref.Value
-     member x.Dispose() = shutdown x (ActorStatus.Disposed)
+    member x.ReceiveActorMessage(?timeout, ?token) = 
+        options.Mailbox.Receive(timeout, defaultArg token cts.Token)
+
+    member x.Receive<'a>(?timeout, ?token) = 
+        async {
+           let! msg = x.ReceiveActorMessage(?timeout = timeout, ?token = token)
+           return msg.Message |> unbox<'a>
+        }
+
+    member x.Start() = start x "Initial Startup"
+    member x.Post(msg : MessageEnvelope) =
+        if not <| status.IsShutdownState()
+        then
+            if not <| (status = ActorStatus.NotStarted)
+            then
+               match msg.Message with
+               | :? SystemMessage as sysMsg ->
+                   match sysMsg with
+                   | SystemMessage.Shutdown(reason) -> shutdown x (ActorStatus.Stopped(reason))
+                   | SystemMessage.Restart(reason) -> restart x reason
+                   | SystemMessage.Link(actor) -> children.Add(actor)
+                   | SystemMessage.UnLink(actor) -> children.Remove(actor) |> ignore
+               | :? SupervisorMessage as supMsg ->
+                   match supMsg with
+                   | SupervisorMessage.Errored(err, sender) -> x.Options.OnError x err sender
+               | :? 'a as msg -> options.Mailbox.Post(MessageEnvelope.Create(msg, x.Ref.Path))
+               | _ -> 
+                    options.Mailbox.Post(msg)      
+            else ()
+        else raise <| UnableToDeliverMessageException (sprintf "Actor (%A) cannot receive messages invalid status %A" x status)
+
+    member x.Ref with get() = ref.Value
+    member x.Dispose() = shutdown x (ActorStatus.Disposed)
 
 module Actor =               
-    
-    //registers the actor so it can be resolved by its path
-    let register actor = 
-        Registry.Actor.register actor
-    
-    //removes the actor for the registry. This will prevent lookup by path
-    let unregister actor = 
-        Registry.Actor.unregister actor
-    
+   
     ///Creates an actor ref
     let ref (actor:Actor<_>) =
         actor.Ref
-
+    
     ///Creates an actor
     let create options computation = 
         let actor = new Actor<_>(computation, options)
         actor.Start()
         actor |> ref
-
-    ///Creates an actor and registers it so it can be made discoverable
-    let spawn options computation =
-        create options computation
-        |> register
-    
+        
     ///Links a collection of actors to a parent
     let link (linkees:seq<ActorRef>) (actor:ActorRef) =
         Seq.iter (fun a -> actor.Post(Link(a))) linkees
@@ -150,37 +164,68 @@ module Actor =
     ///Creates an actor that is linked to a set of existing actors as it children
     let createLinked options linkees computation =
         link linkees (create options computation)
-    
-    ///Creates an actor that is linked to a set of existing actors as it children, additionally
-    ///the parent actor is made discoverable
-    let spawnLinked options linkees computation =
-        link linkees (spawn options computation)
-    
+        
     ///Unlinks a set of actors from their parent.
     let unlink linkees (actor:ActorRef) =
         linkees |> Seq.iter (fun l-> actor.Post(UnLink(l)))
         actor
 
- module ErrorStrategies = 
-     
-     let Forward target = 
-         (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-            target <-- ActorErrored(err, originator)
-         )
 
-     let AlwaysFail = 
-         (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-             originator <-- SystemMessage.Shutdown("SupervisorStrategy:AlwaysFail")
-         )
+module Error = 
+    
+    module Strategy =
 
-     let OneForOne = 
-        (fun (reciever:Actor<_>) err (originator:ActorRef) -> 
-             originator <-- SystemMessage.Restart("SupervisorStrategy:OneForOne")
-        )
-        
-     let OneForAll = 
-        (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-             reciever.Children 
-             |> Seq.iter (fun c -> c <-- SystemMessage.Restart("SupervisorStrategy:OneForAll"))
-        )
+        let Forward (target:ActorRef) = 
+            (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
+               target <-- Errored(err, originator)
+            )
+
+        let AlwaysFail = 
+            (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
+                originator <-- Shutdown("Supervisor:AlwaysFail")
+            )
+
+        let OneForOne = 
+           (fun (reciever:Actor<_>) err (originator:ActorRef) -> 
+                originator <-- Restart("Supervisor:OneForOne")
+           )
+           
+        let OneForAll = 
+           (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
+                reciever.Children 
+                |> Seq.iter ((-->) (Restart("Supervisor:OneForAll")))
+           )
+
+module Supervisor =
+
+    let private defaultHandler maxFailures (actor:Actor<SupervisorMessage>)  =
+        let rec supervisorLoop (restarts:Map<string,int>) = 
+            async {
+                let! msg = actor.Receive()
+                match msg with
+                | Errored(err, targetActor) ->
+                    match restarts.TryFind(targetActor.Path), maxFailures with
+                    | Some(count), Some(maxfails) when count < maxfails -> 
+                        actor.Options.OnError actor err targetActor                            
+                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
+                    | Some(count), Some(maxfails) -> 
+                        targetActor.Post(SystemMessage.Shutdown("Too many restarts"))                          
+                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
+                    | Some(count), None -> 
+                        actor.Options.OnError actor err targetActor                              
+                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
+                    | None, Some(maxfails) ->
+                        actor.Options.OnError actor err targetActor                              
+                        return! supervisorLoop (Map.add targetActor.Path 1 restarts)
+                    | None, None ->
+                        actor.Options.OnError actor err targetActor                                
+                        return! supervisorLoop (Map.add targetActor.Path 1 restarts)            
+            }
+        supervisorLoop Map.empty
+
+    let create path strategy comp = 
+        Actor.create (ActorOptions<SupervisorMessage>.Create(path, errorPolicy = strategy)) comp
+    
+    let createDefault path strategy maxFails = 
+        create path strategy (defaultHandler maxFails)
 
