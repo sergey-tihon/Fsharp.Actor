@@ -21,6 +21,12 @@ let err =
             loop()
         )
 
+let createErrorActor name = 
+    Actor.create (ActorOptions.Create(name,
+                            restartPolicy = [(fun a -> a.Log.Error(sprintf "%A restarting" a, None))]
+                                     )
+                 ) err
+
 (**
 then a supervisor will allow the actor to restart or terminate depending on the particular strategy that is in place
 
@@ -32,13 +38,13 @@ A supervisor strategy allows you to define the restart semantics for the actors 
     
 A supervisor will only restart the actor that has errored
 *)
-
+let errActor = createErrorActor("err")
 let oneforoneSupervisor = 
-    Supervisor.createDefault "Supervisor:OneForOne" Error.Strategy.OneForOne (Some 3)
+    Supervisor.createDefault "Supervisor:OneForOne" Supervisor.Strategy.OneForOne (Some 3)
+    |> Supervisor.superviseAll [errActor]
 
-    |> Supervisor.superviseAll [Actor.spawn (ActorContext.Create("err_0")) err]
-
-!!"err_0" <-- "fail"
+errActor <-- "Foo"
+errActor <-- "fail"
 
 (**
 This yields
@@ -64,19 +70,14 @@ we can see in the last 4 lines that the supervisor restarted this actor.
 If any watched actor errors all children of this supervisor will be told to restart.
 *)
 
+let err_1, err_2 = createErrorActor("err_1"), createErrorActor("err_2")
+
 let oneforall = 
-    Supervisor.spawn 
-        <| Supervisor.Options.Create(
-                    strategy = Supervisor.Strategy.OneForAll,
-                    actorOptions = Actor.Options.Create("OneForAll")
-           )
-    |> Supervisor.superviseAll
-        [
-            Actor.spawn (Actor.Options.Create("err_1")) err;
-            Actor.spawn (Actor.Options.Create("err_2")) err
-        ]
-"err_1" ?<-- "Boo"
-"err_2" ?<-- "fail"
+    Supervisor.createDefault "Supervisor:OneForAll" Supervisor.Strategy.OneForAll (Some 3)
+    |> Supervisor.superviseAll [err_1; err_2]
+
+err_1 <-- "Boo"
+err_2 <-- "fail"
 
 (**
 This yields
@@ -105,17 +106,11 @@ we can see here that all of the actors supervised by this actor has been restart
 A supervisor will terminate the actor that has errored
 *)
 
-let fail = 
-    Supervisor.spawn 
-        <| Supervisor.Options.Create(
-                    strategy = Supervisor.Strategy.AlwaysFail,
-                    actorOptions = Actor.Options.Create("Fail")
-           )
-    |> Supervisor.superviseAll
-        [
-            Actor.spawn (Actor.Options.Create("err_3")) err;
-            Actor.spawn (Actor.Options.Create("err_4")) err
-        ]
+let err_1, err_2 = createErrorActor("err_3"), createErrorActor("err_4")
+
+let oneforall = 
+    Supervisor.createDefault "Supervisor:AlwaysFail" Supervisor.Strategy.AlwaysFail (Some 3)
+    |> Supervisor.superviseAll [err_1; err_2]
 
 !!"err_3" <-- "fail"
 

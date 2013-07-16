@@ -49,7 +49,7 @@ type DisruptorBasedDispatcher(actors, ?handlers, ?onError, ?onUndeliverable) =
             member x.HandleOnShutdownException(error) = 
                  onError(error, None)
             member x.HandleEventException(error, sequence, data) =
-                 onError(error, Some data)
+                 onError(error, Some (data :?> MessageEnvelope))
         }
 
     let resolveAndPost (msg:MessageEnvelope) = 

@@ -43,8 +43,8 @@
     <Compile Include="Trie.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Mailboxes.fs" />
-    <Compile Include="Dispatch.fs" />
     <Compile Include="Actor.fs" />
+    <Compile Include="Dispatch.fs" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
