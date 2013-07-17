@@ -9,7 +9,7 @@ Actors can supervise other actors, if we define an actor loop that fails on a gi
 *)
 
 let err = 
-        (fun (actor:Actor<string>) ->
+        (fun (actor:Actor) ->
             let rec loop() =
                 async {
                     let! msg = actor.Receive()

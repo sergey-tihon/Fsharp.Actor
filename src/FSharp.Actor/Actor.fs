@@ -43,7 +43,7 @@ with
         }
     static member Default = ActorOptions.Create()
 
-and Actor internal(computation : Actor -> Async<unit>, options) as self =
+and Actor(options, computation : Actor -> Async<unit>) as self =
 
     let mutable cts = new CancellationTokenSource()
     let mutable options = options
@@ -144,11 +144,10 @@ and Actor internal(computation : Actor -> Async<unit>, options) as self =
 
     interface IDisposable with
         member x.Dispose() = shutdown x (ActorStatus.Disposed)
-           
-       
+
     ///Creates an actor
     static member create options computation = 
-        let actor = new Actor(computation, options)
+        let actor = new Actor(options, computation)
         actor.Ref
         
     ///Links a collection of actors to a parent
@@ -172,5 +171,16 @@ and Actor internal(computation : Actor -> Async<unit>, options) as self =
     ///Removes the supervisor for a set of actors
     static member unwatch (actors:seq<ActorRef>) = 
         actors |> Seq.iter (fun l -> l <-- UnWatch)
+
+type DeadLetterActor(name) =
+    inherit Actor(ActorOptions.Create(name), 
+                    (fun actor -> 
+                        let rec loop() = 
+                            async {
+                                do! actor.ReceiveEnvelope() |> Async.Ignore
+                                return! loop()
+                            }
+                        loop()
+                    ))
 
 

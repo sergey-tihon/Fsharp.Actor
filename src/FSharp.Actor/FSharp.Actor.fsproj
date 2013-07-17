@@ -47,6 +47,7 @@
     <Compile Include="Actor.fs" />
     <Compile Include="Supervisor.fs" />
     <Compile Include="Dispatchers.fs" />
+    <Compile Include="ActorSystem.fs" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>

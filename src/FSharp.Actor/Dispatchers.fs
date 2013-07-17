@@ -6,7 +6,7 @@ open FSharp.Actor
 open FSharp.Actor.Types
 
 
-type DisruptorBasedDispatcher(actors, ?handlers, ?onError, ?onUndeliverable) = 
+type DisruptorBasedDispatcher(?handlers, ?onError, ?onUndeliverable) = 
  
     let actorTrie : Trie.trie<string, ActorRef> ref = ref Trie.empty
 
@@ -66,7 +66,6 @@ type DisruptorBasedDispatcher(actors, ?handlers, ?onError, ?onUndeliverable) =
     let mutable router = null
 
     let init() = 
-        Seq.iter register actors
         router <- createRouter (defaultArg handlers [])
         router.Start() |> ignore
 

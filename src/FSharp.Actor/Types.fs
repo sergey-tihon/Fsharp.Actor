@@ -62,7 +62,11 @@ module Types =
         abstract Resolve : ActorPath -> ActorRef 
         abstract ResolveAll : ActorPath -> seq<ActorRef> 
         abstract Register : ActorRef -> unit
-        abstract Remove : ActorRef -> unit  
+        abstract Remove : ActorRef -> unit
+        
+    type ITransport = 
+        abstract Post : MessageEnvelope -> unit
+        abstract Receive : IEvent<MessageEnvelope> with get
 
     type ILogger = 
         abstract Debug : string * exn option -> unit

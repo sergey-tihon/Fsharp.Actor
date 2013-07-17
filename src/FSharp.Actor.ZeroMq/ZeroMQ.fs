@@ -1,5 +1,8 @@
 ﻿namespace FSharp.Actor.ZeroMq
 
+open FSharp.Actor
+open System.Threading
+
 module ZeroMQ =
 
     open System
@@ -11,7 +14,7 @@ module ZeroMQ =
     let createContext() = 
         ZeroMQ.ZmqContext.Create()
 
-    let publisher endpoint (serialiser:ISerializer) (event:IEvent<ActorMessage>) =
+    let publisher endpoint (serialiser:ISerializer) (event:IEvent<MessageEnvelope>) =
         async {
             try
                 use ctx = createContext()
@@ -43,8 +46,19 @@ module ZeroMQ =
                     if msg.FrameCount <> 1
                     then
                         let bytes = (msg.[1].Buffer) 
-                        let result = serialiser.Deserialize(bytes) :?> ActorMessage
+                        let result = serialiser.Deserialize(bytes) :?> MessageEnvelope
                         onReceived(result)
             with e -> 
                 printfn "Sub erro: %A" e
+        }
+
+    let transport endpoint subscriptions serialiser onReceive = 
+        let publishEvent = new Event<_>()
+        let receiveEvent = new Event<_>()
+        let cts = new CancellationTokenSource()
+        Async.Start(publisher endpoint serialiser publishEvent.Publish, cts.Token)
+        Async.Start(subscribe endpoint subscriptions serialiser receiveEvent.Trigger, cts.Token)
+        { new ITransport with
+            member x.Post(msg:MessageEnvelope) = publishEvent.Trigger(msg)
+            member x.Receive with get() = receiveEvent.Publish
         }
