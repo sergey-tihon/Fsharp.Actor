@@ -16,24 +16,23 @@ module Types =
         inherit Exception(msg)
 
     type ActorPath = string
-                
+    
     type MessageEnvelope = { 
         mutable Message : obj
         mutable Properties : Map<string, obj>
         mutable Target : ActorPath
         mutable Sender : ActorPath option
     }
-    with 
-        static member Factory =
-            new Func<_>(fun () -> { Message = null; Properties = Map.empty; Sender = None; Target = null } )
+    with
+        static member Default = { Message = null; Properties = Map.empty; Sender = None; Target = null }
+        static member Factory = new Func<_>(fun () ->  MessageEnvelope.Default)
         static member Create(message, target, ?sender, ?props) = 
-            { Message = box message; Properties = defaultArg props Map.empty; Sender = sender; Target = target } 
- 
-    type ActorRef(path:ActorPath, postF: MessageEnvelope -> unit) =
+            { Message = message; Properties = defaultArg props Map.empty; Sender = sender; Target = target }
+    
+    type ActorRef(path:ActorPath, onPost : (MessageEnvelope -> unit)) =
          member val Path = path with get
-         member x.Post(msg:'a) = MessageEnvelope.Create(msg, x.Path) |> postF 
-         member x.Post(msg, ?sender, ?props) = MessageEnvelope.Create(msg, x.Path, ?sender = sender, ?props = props) |> postF
-         member x.Post(msg:MessageEnvelope) = msg |> postF
+         
+         member x.Post (msg: MessageEnvelope) = onPost msg
         
          override x.ToString() =  x.Path
          override x.Equals(y:obj) = 
@@ -41,15 +40,21 @@ module Types =
              | :? ActorRef as y -> x.Path = y.Path
              | _ -> false
          override x.GetHashCode() = x.Path.GetHashCode()
-         static member (<--) (ref:ActorRef,msg:'a) = ref.Post(msg)
-         static member (<--) (ref:ActorRef,(msg:'a, sender)) = ref.Post(msg, sender)
-         static member (<--) (ref:ActorRef,(msg:'a, sender, props)) = ref.Post(msg, sender, props)
-         static member (<--) (ref:ActorRef, msg) = ref.Post(msg)
-         static member (-->) (msg:'a, ref:ActorRef) = ref.Post(msg)
-         static member (-->) ((msg:'a, sender), ref:ActorRef) = ref.Post(msg, sender)
-         static member (-->) ((msg:'a, sender, props),ref:ActorRef) = ref.Post(msg, sender, props)
+         static member (<--) (ref:ActorRef, msg) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path))
+         static member (<--) (ref:ActorRef, (msg, sender)) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path, sender))
+         static member (<--) (ref:ActorRef, (msg, sender, props)) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path, sender, props))
+         static member (<--) (ref:ActorRef, msg) = 
+            ref.Post(msg)
+         static member (-->) (msg, ref:ActorRef) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path))
+         static member (-->) ((msg, sender), ref:ActorRef) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path, sender))
+         static member (-->) ((msg, sender, props),ref:ActorRef) = 
+            ref.Post(MessageEnvelope.Create(msg, ref.Path, sender, props))
          static member (-->) (msg, ref:ActorRef) = ref.Post(msg)
-      
 
     type IDispatcher = 
         inherit IDisposable

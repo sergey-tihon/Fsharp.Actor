@@ -106,61 +106,34 @@ we can see here that all of the actors supervised by this actor has been restart
 A supervisor will terminate the actor that has errored
 *)
 
-let err_1, err_2 = createErrorActor("err_3"), createErrorActor("err_4")
+let err_3, err_4 = createErrorActor("err_3"), createErrorActor("err_4")
 
-let oneforall = 
+let alwaysFail = 
     Supervisor.createDefault "Supervisor:AlwaysFail" Supervisor.Strategy.AlwaysFail (Some 3)
-    |> Supervisor.superviseAll [err_1; err_2]
+    |> Supervisor.superviseAll [err_3; err_4]
 
-!!"err_3" <-- "fail"
+err_3 <-- "fail"
 
 (**
-This yields
+This causes the actor `err_3` to be shut down. If we wanted a cluster of actors to fail if one actor in the fails then we can use
 
-    Terminating (AlwaysTerminate: actor://main-pc/err_1) due to error System.Exception: ERRRROROROR
-       at FSI_0005.err@138-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 138
-       at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)
-       at Microsoft.FSharp.Core.PrintfImpl.run@521[b,c,d](FSharpFunc`2 initialize, String fmt, Int32 len, FSharpList`1 args)
-       at Microsoft.FSharp.Core.PrintfImpl.capture@540[b,c,d](FSharpFunc`2 initialize, String fmt, Int32 len, FSharpList`1 args, Type ty, Int32 i)
-       at Microsoft.FSharp.Core.PrintfImpl.gprintf[b,c,d,a](FSharpFunc`2 initialize, PrintfFormat`4 fmt)
-       at FSI_0005.err@136-1.Invoke(String _arg1) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 138
-       at Microsoft.FSharp.Control.AsyncBuilderImpl.args@753.Invoke(a a)
-    actor://main-pc/err_1 pre-stop Status: Errored
-    actor://main-pc/err_1 stopped Status: Shutdown
 
 If you no longer require an actor to be supervised, then you can `Unwatch` the actor, repeating the OneForAll above
 *)
 
+let err_5, err_6 = createErrorActor("err_5"), createErrorActor("err_6")
+
 let oneforallunwatch = 
-    Supervisor.spawn 
-        <| Supervisor.Options.Create(
-                    strategy = Supervisor.Strategy.OneForAll,
-                    actorOptions = Actor.Options.Create("OneForAll")
-           )
-    |> Supervisor.superviseAll
-        [
-            Actor.spawn (Actor.Options.Create("err_5")) err;
-            Actor.spawn (Actor.Options.Create("err_6")) err
-        ]
+    Supervisor.createDefault "Supervisor:OneForAll" Supervisor.Strategy.OneForAll (Some 3)
+    |> Supervisor.superviseAll [err_5; err_6]
 
-Actor.unwatch !*"err_6" 
+Actor.unwatch [err_5]
 
-!!"err_5" <-- "fail"
+err_6 <-- "fail"
+err_5 <-- "fail"
 
 (**
-We now see that one actor `err_1` has restarted
+We now see that one actor `err_6` has restarted, but when we signal the failure in `err_5` this actor will just shutdown.
 
-    Restarting (OneForAll actor://main-pc/err_1) due to error System.Exception: ERRRROROROR
-       at FSI_0004.err@164-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 164
-       at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)
-       at Microsoft.FSharp.Core.PrintfImpl.run@521[b,c,d](FSharpFunc`2 initialize, String fmt, Int32 len, FSharpList`1 args)
-       at Microsoft.FSharp.Core.PrintfImpl.capture@540[b,c,d](FSharpFunc`2 initialize, String fmt, Int32 len, FSharpList`1 args, Type ty, Int32 i)
-       at Microsoft.FSharp.Core.PrintfImpl.gprintf[b,c,d,a](FSharpFunc`2 initialize, PrintfFormat`4 fmt)
-       at FSI_0004.err@162-1.Invoke(String _arg1) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 164
-       at Microsoft.FSharp.Control.AsyncBuilderImpl.args@753.Invoke(a a)
-    actor://main-pc/err_1 pre-stop Status: Errored
-    actor://main-pc/err_1 stopped Status: Shutdown
-    actor://main-pc/err_1 pre-restart Status: Restarting
-    actor://main-pc/err_1 re-started Status: OK
 
 *)

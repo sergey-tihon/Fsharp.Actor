@@ -38,13 +38,15 @@
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')" />
   <ItemGroup>
-    <Compile Include="Interfaces.fs" />
-    <Compile Include="Async.fs" />
     <Compile Include="Trie.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Async.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Mailboxes.fs" />
+    <Compile Include="Messages.fs" />
     <Compile Include="Actor.fs" />
-    <Compile Include="Dispatch.fs" />
+    <Compile Include="Supervisor.fs" />
+    <Compile Include="Dispatchers.fs" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>

@@ -6,7 +6,7 @@ open FSharp.Actor
 *)
 
 let multiplication = 
-    (fun (actor:Actor<_>) ->
+    (fun (actor:Actor) ->
         let log = actor.Log
         let rec loop() =
             async {
@@ -19,7 +19,7 @@ let multiplication =
     )
 
 let addition = 
-    (fun (actor:Actor<_>) ->
+    (fun (actor:Actor) ->
         let log = actor.Log
         let rec loop() =
             async {
@@ -33,11 +33,9 @@ let addition =
 
 let calculator = 
     [
-       Actor.create (ActorOptions<_>.Create("calculator/addition")) addition
-       Actor.create (ActorOptions<_>.Create("calculator/multiplication")) multiplication
+       Actor.create (ActorOptions.Create("calculator/addition")) addition
+       Actor.create (ActorOptions.Create("calculator/multiplication")) multiplication
     ]
-
-
 
 (**
 The above code creates two actors `calcualtor/addition` and `calculator/multiplication`
@@ -120,7 +118,7 @@ You can change the behaviour of actors at runtime. This achieved through mutuall
 *)
 
 let rec schizoPing = 
-    (fun (actor:Actor<_>) ->
+    (fun (actor:Actor) ->
         let log = actor.Log
         let rec ping() = 
             async {
@@ -138,7 +136,7 @@ let rec schizoPing =
     )
         
 
-let schizo = Actor.create (ActorOptions<_>.Create("schizo")) schizoPing 
+let schizo = Actor.create (ActorOptions.Create("schizo")) schizoPing 
 
 schizo <-- "Hello"
 
@@ -158,7 +156,7 @@ Linking an actor to another means that this actor will become a sibling of the o
 *)
 
 let child i = 
-    Actor.create (ActorOptions<_>.Create(sprintf "a/child_%d" i)) 
+    Actor.create (ActorOptions.Create(sprintf "a/child_%d" i)) 
          (fun actor ->
              let log = actor.Log 
              let rec loop() =
@@ -172,12 +170,12 @@ let child i =
 
 let parent, children = 
     let children = (List.init 5 child)
-    Actor.createLinked (ActorOptions<_>.Create "a/parent") children
+    Actor.createLinked (ActorOptions.Create "a/parent") children
             (fun actor -> 
                 let rec loop() =
                   async { 
                       let! msg = actor.Receive()
-                      actor.Children <-* msg
+                      actor.Options.Children <-* msg
                       return! loop()
                   }
                 loop()    
@@ -215,7 +213,7 @@ State in actors is managed by passing an extra parameter around the loops. For e
 *)
 
 let incrementer =
-    Actor.create ActorOptions<int>.Default (fun (actor:Actor<int>) -> 
+    Actor.create ActorOptions.Default (fun (actor:Actor) -> 
         let log = actor.Log
         let rec loopWithState (currentCount:int) = 
             async {

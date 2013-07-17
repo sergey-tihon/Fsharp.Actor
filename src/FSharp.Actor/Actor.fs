@@ -19,24 +19,13 @@ type ActorStatus =
             | Disposed -> true
             | _ -> false
 
-type SystemMessage = 
-    | Shutdown of string
-    | Restart of string
-    | Link of ActorRef
-    | UnLink of ActorRef
-    | Watch of ActorRef
-    | UnWatch
-
-and SupervisorMessage =
-    | Errored of exn * ActorRef
-
-and ActorOptions<'a> = {
+and ActorOptions = {
     Mailbox : IMailbox<MessageEnvelope>
     Path : ActorPath
     Supervisor : ActorRef option
-    OnStartup : (Actor<'a> -> unit) list
-    OnShutdown : (Actor<'a> -> unit) list
-    OnRestart : (Actor<'a> -> unit) list
+    OnStartup : (Actor -> unit) list
+    OnShutdown : (Actor -> unit) list
+    OnRestart : (Actor -> unit) list
     Children : ActorRef list
     Status : ActorStatus
 }
@@ -45,25 +34,25 @@ with
         {
             Mailbox = defaultArg mailbox (new UnboundedInMemoryMailbox<MessageEnvelope>())
             Path = (defaultArg path (Guid.NewGuid().ToString()))
-            OnStartup = defaultArg shutdownPolicy [(fun (_:Actor<'a>) -> ())]
-            OnShutdown = defaultArg shutdownPolicy [(fun (_:Actor<'a>) -> ())]
-            OnRestart = defaultArg restartPolicy [(fun (_:Actor<'a>) -> ())]
+            OnStartup = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
+            OnShutdown = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
+            OnRestart = defaultArg restartPolicy [(fun (_:Actor) -> ())]
             Supervisor = supervisor
             Children = defaultArg children []
             Status = ActorStatus.NotStarted
         }
-    static member Default = ActorOptions<'a>.Create()
+    static member Default = ActorOptions.Create()
 
-and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self =
-    
-    let mutable cts = new CancellationTokenSource()  
-    let mutable options = defaultArg options (ActorOptions<_>.Create())
+and Actor internal(computation : Actor -> Async<unit>, options) as self =
+
+    let mutable cts = new CancellationTokenSource()
+    let mutable options = options
     let stateChangeSync = new obj()
 
     let updateOptions f =
         options <- (f options)
 
-    let rec run (actor:Actor<'a>) = 
+    let rec run (actor:Actor) = 
        updateOptions (fun o -> { o with Status = ActorStatus.Running})
        async {
              try
@@ -73,7 +62,7 @@ and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self
                 do! handleError actor e
        }
 
-    and handleError (actor:Actor<'a>) (err:exn) =
+    and handleError (actor:Actor) (err:exn) =
         updateOptions (fun o -> { o with Status = ActorStatus.Faulted(err) })
         async {
             match actor.Options.Supervisor with
@@ -83,7 +72,7 @@ and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self
                 do shutdown actor (ActorStatus.Faulted(err))
         }
 
-    and shutdown (actor:Actor<'a>) status =
+    and shutdown (actor:Actor) status =
         lock stateChangeSync (fun _ ->
             cts.Cancel()
             updateOptions (fun o -> { o with Status = status })
@@ -91,13 +80,13 @@ and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self
             List.iter (fun f -> f(actor)) actor.Options.OnShutdown
             )
 
-    and start (actor:Actor<_>) = 
+    and start (actor:Actor) = 
         lock stateChangeSync (fun _ ->
             cts <- new CancellationTokenSource()
             Async.Start(run actor, cts.Token)
         )
 
-    and restart (actor:Actor<_>) reason =
+    and restart (actor:Actor) reason =
         lock stateChangeSync (fun _ ->
             updateOptions (fun o -> { o with Status = ActorStatus.Restarting(reason) })
             cts.Cancel()
@@ -106,146 +95,82 @@ and Actor<'a> internal(computation : Actor<'a> -> Async<unit>, ?options) as self
             start actor 
         )
 
-    let ref = 
-       lazy
-           new ActorRef(options.Path, self.Post)
-
-    do
-        start self
-   
-    override x.ToString() = ref.Value.Path
-
-    member x.Log with get() = Logger.Current
-    member x.Options with get() = options
+    let handleSystemMessage actor = function
+        | SystemMessage.Shutdown(reason) -> shutdown actor (ActorStatus.Stopped(reason))
+        | SystemMessage.Restart(reason) -> restart actor reason
+        | SystemMessage.Link(actorRef) -> updateOptions (fun o -> { o with Children =  actorRef :: o.Children })
+        | SystemMessage.UnLink(actorRef) -> updateOptions (fun o -> { o with Children = List.filter ((<>) actorRef) o.Children })
+        | SystemMessage.Watch(sup) -> 
+             options <- { actor.Options with Supervisor = Some(sup) } 
+             sup <-- Link(actor.Ref)
+        | SystemMessage.UnWatch -> 
+             match actor.Options.Supervisor with
+             | Some(sup) -> 
+                 options <- { actor.Options with Supervisor = None } 
+                 sup <-- UnLink(actor.Ref)
+             | None -> ()
     
-    member x.ReceiveActorMessage(?timeout, ?token) = 
-        options.Mailbox.Receive(timeout, defaultArg token cts.Token)
-
-    member x.Receive<'a>(?timeout, ?token) = 
-        async {
-           let! msg = x.ReceiveActorMessage(?timeout = timeout, ?token = token)
-           return msg.Message |> unbox<'a>
-        }
-
-    member x.Post(msg : MessageEnvelope) =
-        if not <| x.Options.Status.IsShutdownState()
+    let post (actor:Actor) msg = 
+        if not <| actor.Options.Status.IsShutdownState()
         then
-            if not <| (x.Options.Status = ActorStatus.NotStarted)
+            if not <| (actor.Options.Status = ActorStatus.NotStarted)
             then
                match msg.Message with
-               | :? 'a as msg -> options.Mailbox.Post(MessageEnvelope.Create(msg, x.Ref.Path))
-               | :? SystemMessage as sysMsg ->
-                   match sysMsg with
-                   | SystemMessage.Shutdown(reason) -> shutdown x (ActorStatus.Stopped(reason))
-                   | SystemMessage.Restart(reason) -> restart x reason
-                   | SystemMessage.Link(actor) ->  updateOptions (fun o -> { o with Children =  actor :: o.Children })
-                   | SystemMessage.UnLink(actor) ->  updateOptions (fun o -> { o with Children = List.filter ((<>) actor) o.Children })
-                   | SystemMessage.Watch(sup) -> 
-                        options <- { x.Options with Supervisor = Some(sup) } 
-                        sup <-- Link(x.Ref)
-                   | SystemMessage.UnWatch -> 
-                        match x.Options.Supervisor with
-                        | Some(sup) -> 
-                            options <- { x.Options with Supervisor = None } 
-                            sup <-- UnLink(x.Ref)
-                        | None -> ()
-               | :? MessageEnvelope as msg -> 
-                    options.Mailbox.Post(msg)
-               | msg -> 
-                 raise <| UnableToDeliverMessageException (sprintf "Actor (%A) cannot deliver messages of type %A" x (msg.GetType()))    
+               | :? SystemMessage as sysMsg -> handleSystemMessage actor sysMsg
+               | _ -> options.Mailbox.Post(msg)   
             else ()
-        else raise <| UnableToDeliverMessageException (sprintf "Actor (%A) cannot deliver messages invalid status %A" x x.Options.Status)
-
-    member x.Ref with get() = ref.Value
-    member x.Dispose() = shutdown x (ActorStatus.Disposed)
-
-module Actor =               
-   
-    ///Creates an actor ref
-    let ref (actor:Actor<_>) =
-        actor.Ref
+        else raise 
+                <| UnableToDeliverMessageException 
+                     (sprintf "Actor (%A) cannot deliver messages invalid status %A" actor.Ref actor.Options.Status)
     
+
+    let ref = 
+        lazy new ActorRef(options.Path, post self)
+    do
+        start self
+    
+    override x.ToString() = x.Ref.ToString()
+    member x.Log with get() = Logger.Current
+    member x.Options with get() = options
+    member x.Ref with get() = ref.Value
+    member x.Receive<'a>(?timeout, ?token) = 
+        async {
+           let! msg = x.ReceiveEnvelope(?timeout = timeout, ?token = token)
+           return msg.Message |> unbox<'a>
+        }
+    
+    member x.ReceiveEnvelope(?timeout, ?token) = options.Mailbox.Receive(timeout, defaultArg token cts.Token)
+    member x.Post(msg : MessageEnvelope) = post x msg
+
+    interface IDisposable with
+        member x.Dispose() = shutdown x (ActorStatus.Disposed)
+           
+       
     ///Creates an actor
-    let create options computation = 
-        let actor = new Actor<_>(computation, options)
-        actor |> ref
+    static member create options computation = 
+        let actor = new Actor(computation, options)
+        actor.Ref
         
     ///Links a collection of actors to a parent
-    let link (linkees:seq<ActorRef>) (actor:ActorRef) =
-        Seq.iter (fun a -> actor.Post(Link(a))) linkees
+    static member link (linkees:seq<ActorRef>) (actor:ActorRef) =
+        Seq.iter (fun a -> actor <-- Link(a)) linkees
         actor
     
     ///Creates an actor that is linked to a set of existing actors as it children
-    let createLinked options linkees computation =
-        link linkees (create options computation)
+    static member createLinked options linkees computation =
+        Actor.link linkees (Actor.create options computation)
         
     ///Unlinks a set of actors from their parent.
-    let unlink linkees (actor:ActorRef) =
-        linkees |> Seq.iter (fun l-> actor.Post(UnLink(l)))
+    static member unlink linkees (actor:ActorRef) =
+        linkees |> Seq.iter (fun l-> actor <-- UnLink(l))
         actor
 
-module Supervisor =
+    ///Sets the supervisor for a set of actors
+    static member watch (actors:seq<ActorRef>) (supervisor:ActorRef) =
+        actors |> Seq.iter (fun l-> l <-- Watch(supervisor))
+        
+    ///Removes the supervisor for a set of actors
+    static member unwatch (actors:seq<ActorRef>) = 
+        actors |> Seq.iter (fun l -> l <-- UnWatch)
 
-    module Strategy =
 
-        let Forward (target:ActorRef) = 
-            (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-               target <-- Errored(err, originator)
-            )
-
-        let AlwaysFail = 
-            (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-                originator <-- Shutdown("Supervisor:AlwaysFail")
-            )
-
-        let FailAll = 
-            (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-                reciever.Options.Children 
-                |> List.iter ((-->) (Shutdown("Supervisor:FailAll")))
-            )
-
-        let OneForOne = 
-           (fun (reciever:Actor<_>) err (originator:ActorRef) -> 
-                originator <-- Restart("Supervisor:OneForOne")
-           )
-           
-        let OneForAll = 
-           (fun (reciever:Actor<_>) err (originator:ActorRef)  -> 
-                reciever.Options.Children 
-                |> List.iter ((-->) (Restart("Supervisor:OneForAll")))
-           )
-
-    let private defaultHandler maxFailures strategy (actor:Actor<SupervisorMessage>)  =
-        let rec supervisorLoop (restarts:Map<string,int>) = 
-            async {
-                let! msg = actor.Receive()
-                match msg with
-                | Errored(err, targetActor) ->
-                    match restarts.TryFind(targetActor.Path), maxFailures with
-                    | Some(count), Some(maxfails) when count < maxfails -> 
-                        strategy actor err targetActor                            
-                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
-                    | Some(count), Some(maxfails) -> 
-                        targetActor.Post(SystemMessage.Shutdown("Too many restarts"))                          
-                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
-                    | Some(count), None -> 
-                        strategy actor err targetActor                              
-                        return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
-                    | None, Some(maxfails) ->
-                        strategy actor err targetActor                              
-                        return! supervisorLoop (Map.add targetActor.Path 1 restarts)
-                    | None, None ->
-                        strategy actor err targetActor                                
-                        return! supervisorLoop (Map.add targetActor.Path 1 restarts)            
-            }
-        supervisorLoop Map.empty
-
-    let create path strategy comp = 
-        Actor.create (ActorOptions<SupervisorMessage>.Create(path)) (comp strategy)
-    
-    let createDefault path strategy maxFails = 
-        create path strategy (defaultHandler maxFails)
-
-    let superviseAll (children:seq<ActorRef>) (supervisor:ActorRef) = 
-        children |> Seq.iter ((-->) (Watch(supervisor)))
-        supervisor

@@ -119,5 +119,5 @@ module Operators =
 
     let (!!) (path:ActorPath) = Dispatcher.get().Resolve path
     let (?<--) (path:ActorPath) msg = Dispatcher.post path msg
-    let (?<-*) (refs:ActorPath) (msg:'a) = Dispatcher.get().ResolveAll refs |> Seq.iter (fun r -> r.Post(msg))
-    let (<-*) (refs:seq<ActorRef>) (msg:'a) = refs |> Seq.iter (fun r -> r.Post(msg))
+    let (?<-*) (refs:ActorPath) (msg:'a) = Dispatcher.get().ResolveAll refs |> Seq.iter (fun r -> r.Post(MessageEnvelope.Create(msg, r.Path)))
+    let (<-*) (refs:seq<ActorRef>) (msg:'a) = refs |> Seq.iter (fun r -> r.Post(MessageEnvelope.Create(msg, r.Path)))
