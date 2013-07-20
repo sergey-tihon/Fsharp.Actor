@@ -30,10 +30,10 @@ and ActorOptions = {
     Status : ActorStatus
 }
 with 
-    static member Create(?path, ?mailbox, ?children, ?supervisor, ?startupPolicy, ?shutdownPolicy, ?restartPolicy) = 
+    static member Create(path, ?mailbox, ?children, ?supervisor, ?startupPolicy, ?shutdownPolicy, ?restartPolicy) = 
         {
             Mailbox = defaultArg mailbox (new UnboundedInMemoryMailbox<MessageEnvelope>())
-            Path = (defaultArg path (Guid.NewGuid().ToString()))
+            Path = path
             OnStartup = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
             OnShutdown = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
             OnRestart = defaultArg restartPolicy [(fun (_:Actor) -> ())]
@@ -41,7 +41,6 @@ with
             Children = defaultArg children []
             Status = ActorStatus.NotStarted
         }
-    static member Default = ActorOptions.Create()
 
 and Actor(options, computation : Actor -> Async<unit>) as self =
 

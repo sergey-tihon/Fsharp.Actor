@@ -56,9 +56,14 @@ module ZeroMQ =
         let publishEvent = new Event<_>()
         let receiveEvent = new Event<_>()
         let cts = new CancellationTokenSource()
-        Async.Start(publisher endpoint serialiser publishEvent.Publish, cts.Token)
-        Async.Start(subscribe endpoint subscriptions serialiser receiveEvent.Trigger, cts.Token)
+       
         { new ITransport with
             member x.Post(msg:MessageEnvelope) = publishEvent.Trigger(msg)
             member x.Receive with get() = receiveEvent.Publish
+            member x.Start() =
+                 Async.Start(publisher endpoint serialiser publishEvent.Publish, cts.Token)
+                 Async.Start(subscribe endpoint subscriptions serialiser receiveEvent.Trigger, cts.Token)
+            member x.Dispose() = 
+                cts.Cancel()
+                
         }

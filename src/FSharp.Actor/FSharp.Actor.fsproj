@@ -44,9 +44,10 @@
     <Compile Include="Logger.fs" />
     <Compile Include="Mailboxes.fs" />
     <Compile Include="Messages.fs" />
+    <Compile Include="Registries.fs" />
+    <Compile Include="Dispatchers.fs" />
     <Compile Include="Actor.fs" />
     <Compile Include="Supervisor.fs" />
-    <Compile Include="Dispatchers.fs" />
     <Compile Include="ActorSystem.fs" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />

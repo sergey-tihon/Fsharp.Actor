@@ -32,14 +32,14 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Actor.Node1", "samples\Acto
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Actor.Node2", "samples\Actor.Node2\Actor.Node2.fsproj", "{F2734EA2-85CB-40D7-A02E-7B5C925DEE2E}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Actor.Fracture", "src\FSharp.Actor.Fracture\FSharp.Actor.Fracture.fsproj", "{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{DFA86739-6DF5-4F49-8867-7308598D24FB}"
 	ProjectSection(SolutionItems) = preProject
 		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Actor.ZeroMq", "src\FSharp.Actor.ZeroMq\FSharp.Actor.ZeroMq.fsproj", "{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Transports", "Transports", "{F6724FBC-F855-4CCB-B976-83CC169FB0FD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -63,10 +63,6 @@ Global
 		{F2734EA2-85CB-40D7-A02E-7B5C925DEE2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F2734EA2-85CB-40D7-A02E-7B5C925DEE2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F2734EA2-85CB-40D7-A02E-7B5C925DEE2E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B7D485A9-C4B4-4AEC-9D39-7DC5A98C360C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -80,5 +76,6 @@ Global
 		{ECF31D64-040F-4AD1-A033-DE6125F6B7C1} = {97567239-FBBA-4443-BBFC-728507C17CDA}
 		{4DEAA223-CD05-480F-AE39-A66EFFBEDE6E} = {ECF31D64-040F-4AD1-A033-DE6125F6B7C1}
 		{F2734EA2-85CB-40D7-A02E-7B5C925DEE2E} = {ECF31D64-040F-4AD1-A033-DE6125F6B7C1}
+		{80EAED3D-8B92-4CCD-A6FA-8A7D0A8F7FCD} = {F6724FBC-F855-4CCB-B976-83CC169FB0FD}
 	EndGlobalSection
 EndGlobal

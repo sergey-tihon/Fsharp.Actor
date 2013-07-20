@@ -37,8 +37,9 @@ module Supervisor =
            )
 
     let private defaultHandler maxFailures strategy (actor:Actor)  =
-        let rec supervisorLoop (restarts:Map<string,int>) = 
+        let rec supervisorLoop (restarts:Map<ActorPath,int>) = 
             async {
+                
                 let! msg = actor.Receive()
                 match msg with
                 | Errored(err, targetActor) ->

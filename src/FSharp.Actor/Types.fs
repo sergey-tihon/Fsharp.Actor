@@ -15,8 +15,24 @@ module Types =
     type InvalidDispatchConfiguration(msg) =
         inherit Exception(msg)
 
-    type ActorPath = string
-    
+    type InvalidActorPath() =
+        inherit Exception("Actor Paths should be of the form {system}@{actor}")
+
+    type ActorPath = {
+        System : string
+        Actor : string
+    }
+    with
+        override x.ToString() = x.System + "@" + x.Actor
+        static member Create(str:string) = 
+            match str.Split([|'@'|], StringSplitOptions.RemoveEmptyEntries) with
+            | [|system;actor|] -> ActorPath.Create(system, actor)
+            | _ -> raise(InvalidActorPath())
+        static member Create(?system, ?actor) =
+            { System = (defaultArg system "*").ToLower(); Actor = (defaultArg actor "*").ToLower() }
+        static member op_Implicit(path:string) = ActorPath.Create(path)
+        static member Null = { System = null; Actor = null }
+
     type MessageEnvelope = { 
         mutable Message : obj
         mutable Properties : Map<string, obj>
@@ -24,7 +40,7 @@ module Types =
         mutable Sender : ActorPath option
     }
     with
-        static member Default = { Message = null; Properties = Map.empty; Sender = None; Target = null }
+        static member Default = { Message = null; Properties = Map.empty; Sender = None; Target = ActorPath.Null }
         static member Factory = new Func<_>(fun () ->  MessageEnvelope.Default)
         static member Create(message, target, ?sender, ?props) = 
             { Message = message; Properties = defaultArg props Map.empty; Sender = sender; Target = target }
@@ -34,7 +50,7 @@ module Types =
          
          member x.Post (msg: MessageEnvelope) = onPost msg
         
-         override x.ToString() =  x.Path
+         override x.ToString() =  x.Path.ToString()
          override x.Equals(y:obj) = 
              match y with
              | :? ActorRef as y -> x.Path = y.Path
@@ -55,18 +71,26 @@ module Types =
          static member (-->) ((msg, sender, props),ref:ActorRef) = 
             ref.Post(MessageEnvelope.Create(msg, ref.Path, sender, props))
          static member (-->) (msg, ref:ActorRef) = ref.Post(msg)
+    
 
-    type IDispatcher = 
+    type IRegister = 
         inherit IDisposable
-        abstract Post : MessageEnvelope -> unit
+        abstract TryResolve : ActorPath -> ActorRef option
         abstract Resolve : ActorPath -> ActorRef 
         abstract ResolveAll : ActorPath -> seq<ActorRef> 
         abstract Register : ActorRef -> unit
         abstract Remove : ActorRef -> unit
-        
+
     type ITransport = 
+        inherit IDisposable
         abstract Post : MessageEnvelope -> unit
         abstract Receive : IEvent<MessageEnvelope> with get
+        abstract Start : unit -> unit
+
+    type IDispatcher = 
+        inherit IDisposable
+        abstract Post : MessageEnvelope -> unit
+        abstract Configure : IRegister * seq<ITransport> * ActorRef -> unit  
 
     type ILogger = 
         abstract Debug : string * exn option -> unit
@@ -84,7 +108,4 @@ module Types =
          abstract Length : int with get
          abstract IsEmpty : bool with get
          abstract Restart : unit -> unit
-
-    type IRegistry = 
-        inherit IDisposable
 

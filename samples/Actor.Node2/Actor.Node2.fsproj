@@ -52,11 +52,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FSharp.Actor.Fracture\FSharp.Actor.Fracture.fsproj">
-      <Name>FSharp.Actor.Fracture</Name>
-      <Project>{b7d485a9-c4b4-4aec-9d39-7dc5a98c360c}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\..\src\FSharp.Actor\FSharp.Actor.fsproj">
       <Name>FSharp.Actor</Name>
       <Project>{aa4bc25b-04f7-4b39-bf28-0b0058193ed9}</Project>

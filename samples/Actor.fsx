@@ -5,6 +5,8 @@ open FSharp.Actor
 #Basic Actors
 *)
 
+ActorSystem.createWithDefaultConfiguration "example" []
+
 let multiplication = 
     (fun (actor:Actor) ->
         let log = actor.Log
