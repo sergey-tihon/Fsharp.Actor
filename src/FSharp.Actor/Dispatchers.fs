@@ -5,11 +5,16 @@ open System.Threading
 open FSharp.Actor
 open FSharp.Actor.Types
 
-type DispatcherErrorMessage = 
-    | StartException of exn
-    | ShutdownException of exn
-    | MessageHandlingException of exn * MessageEnvelope
-    | MessageUndeliverable of MessageEnvelope
+type DispatcherStartException(inner:exn) =
+    inherit Exception("Error on dispatcher startup", inner)
+   
+type DispatcherShutdownException(inner:exn) =
+    inherit Exception("Error on dispatcher shutdown", inner)
+    
+type DispatcherMessageHandlingException(inner:exn, message:MessageEnvelope) =
+    inherit Exception("Error on dispatcher handling message", inner)
+    member val Message = message with get
+
 
 type DisruptorBasedDispatcher() = 
     
@@ -23,20 +28,28 @@ type DisruptorBasedDispatcher() =
                     handleF(data)
         }
 
+    let transportHandler (transport:ITransport) = 
+        { new Disruptor.IEventHandler<MessageEnvelope> with
+               member x.OnNext(data, sequence, endOfBatch) =
+                    transport.Post(data)
+        }
+
     let errorHandler = 
         { new Disruptor.IExceptionHandler with
-            member x.HandleOnStartException(error) = 
-                 supervisor <-- StartException(error)
-            member x.HandleOnShutdownException(error) = 
-                 supervisor <-- ShutdownException(error)
+            member x.HandleOnStartException(error) =
+                 //TODO: Really should have and actor or event stream to handle these sort of things
+                 Logger.Current.Error("Dispatcher failed to start", Some error)
+            member x.HandleOnShutdownException(error) =
+                 Logger.Current.Error("Dispatcher failed to shutdown", Some error)
             member x.HandleEventException(error, sequence, data) =
-                 supervisor <-- MessageHandlingException(error, data :?> MessageEnvelope)
+                 Logger.Current.Error("Dispatcher event errored", Some error)
+
         }
 
     let mutable router : Disruptor.Dsl.Disruptor<MessageEnvelope> = null
 
     let publish payload = 
-        router.PublishEvent(fun msg _ -> 
+        router.PublishEvent(fun msg seq -> 
                               msg.Message <- payload.Message
                               msg.Target <- payload.Target
                               msg.Sender <- payload.Sender
@@ -47,19 +60,20 @@ type DisruptorBasedDispatcher() =
     let resolveAndPost (msg:MessageEnvelope) = 
         match registry.TryResolve msg.Target with
         | Some(r) -> r.Post(msg)
-        | None -> supervisor <-- MessageUndeliverable(msg)
+        | None -> 
+            Logger.Current.Error(sprintf "Undeliverable message %A" msg, None)
 
     let wireTransportReceiversAndGetPublishers (transports:seq<ITransport>) =
-         transports 
-         |> Seq.map (fun transport -> transport.Receive |> Event.add publish; publish)
-         |> Seq.toList
+         transports |> Seq.iter (fun (transport:ITransport) -> transport.Receive |> Event.add resolveAndPost; transport.Start())
 
     let createRouter() = 
-        let transportHandlers = wireTransportReceiversAndGetPublishers transports
-        let disruptor = Disruptor.Dsl.Disruptor(MessageEnvelope.Factory, 1048576, Tasks.TaskScheduler.Default)
+        let disruptor = Disruptor.Dsl.Disruptor(MessageEnvelope.Factory, 1024, Tasks.TaskScheduler.Default)
         disruptor.HandleExceptionsWith(errorHandler)
-        disruptor.HandleEventsWith(List.map genericHandler (resolveAndPost :: transportHandlers) |> List.toArray) |> ignore
+        disruptor.HandleEventsWith(genericHandler resolveAndPost) 
+                 .Then(Seq.map transportHandler transports |> Seq.toArray) |> ignore
+        router <- disruptor
         disruptor.Start() |> ignore
+        wireTransportReceiversAndGetPublishers transports
 
     interface IDispatcher with
         member x.Post(msg) = publish msg

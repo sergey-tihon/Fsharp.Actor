@@ -3,40 +3,42 @@
 
 open System
 open FSharp.Actor
+open FSharp.Actor.ZeroMq
+open FsCoreSerializer
 
+do
+  ActorSystem.configure(
+        ActorSystemConfiguration.Create(
+                transports = [ZeroMQ.transport "tcp://127.0.0.1:6666" "tcp://127.0.0.1:6667" [] (new FsCoreSerializer())]
+                ))
 
-let fractureTransport = 
-    new Fracture.FractureTransport(6667)
-
-let logger = 
-    Actor.spawn (Actor.Options.Create("node1/logger")) 
-       (fun (actor:IActor<string>) ->
-            let log = (actor :?> Actor.T<string>).Log
+let pingPong = 
+    ActorSystem.actorOf("ping-pong", 
+       (fun (actor:Actor) ->
+            let log = actor.Log
             let rec loop() = 
                 async {
-                    let! (msg, sender) = actor.Receive()
-                    log.Debug(sprintf "%A sent %A" sender msg, None)
-                    match sender with
-                    | Some(s) -> 
-                        s <-- "pong"
-                    | None -> ()
+                    let! msg = actor.Receive()
+                    log.Debug(sprintf "Msg: %s" msg, None)
+                    //(msg.Sender |> string) ?<-- "pong"
                     return! loop()
                 }
             loop()
-        )
+        ))
 
 [<EntryPoint>]
-let main argv = 
-    Registry.Transport.register fractureTransport
-    
-    logger <-- "Hello"
-    "node1/logger" ?<-- "Hello"
+let main argv =
+    Console.WriteLine("node-1 started");
+    Console.ReadLine() |> ignore
+   
+    pingPong <-- "Hello"
 
-    while Console.ReadLine() <> "exit" do
-        "actor.fracture://127.0.0.1:6666/node2/logger" ?<-- "Ping"
+    let mutable ended = false
+    while not <| ended do
+        "ping-pong" ?<-- "Ping"
+        let input = Console.ReadLine()
+        ended <- input = "exit"
 
-    "actor.fracture://127.0.0.1:6666/node2/logger" ?<!- Shutdown("Remote Shutdown")
-    
     Console.ReadLine() |> ignore
 
     0

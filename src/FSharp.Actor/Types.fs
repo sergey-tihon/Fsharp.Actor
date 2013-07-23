@@ -6,8 +6,8 @@ open System.Threading
 [<AutoOpen>]
 module Types = 
     
-    type ActorNotFound(message) = 
-        inherit Exception(message)
+    type ActorNotFound(name) = 
+        inherit Exception(sprintf "Unable to find actor %A" name)
 
     type UnableToDeliverMessageException(msg) = 
         inherit Exception(msg)
@@ -15,35 +15,29 @@ module Types =
     type InvalidDispatchConfiguration(msg) =
         inherit Exception(msg)
 
-    type InvalidActorPath() =
-        inherit Exception("Actor Paths should be of the form {system}@{actor}")
+    type InvalidActorPath(invalidPath:string) =
+        inherit Exception(sprintf "%A is an invalid path should be of the form actor.{transport}://{host}:{port}/{actor}" invalidPath)
 
     type ActorPath = {
-        System : string
-        Actor : string
-    }
+        Actor : string    }
     with
-        override x.ToString() = x.System + "@" + x.Actor
-        static member Create(str:string) = 
-            match str.Split([|'@'|], StringSplitOptions.RemoveEmptyEntries) with
-            | [|system;actor|] -> ActorPath.Create(system, actor)
-            | _ -> raise(InvalidActorPath())
-        static member Create(?system, ?actor) =
-            { System = (defaultArg system "*").ToLower(); Actor = (defaultArg actor "*").ToLower() }
-        static member op_Implicit(path:string) = ActorPath.Create(path)
-        static member Null = { System = null; Actor = null }
+        override x.ToString() =  x.Actor
+        static member Create(actor, ?transport, ?host, ?port) =
+            { Actor = actor; }
+        static member op_Implicit(path:string) = ActorPath.Create(path) 
 
     type MessageEnvelope = { 
         mutable Message : obj
         mutable Properties : Map<string, obj>
         mutable Target : ActorPath
-        mutable Sender : ActorPath option
+        mutable Sender : ActorPath
+        mutable Topic : string
     }
     with
-        static member Default = { Message = null; Properties = Map.empty; Sender = None; Target = ActorPath.Null }
+        static member Default = { Message = null; Topic = "*"; Properties = Map.empty; Sender = ActorPath.Create(""); Target = ActorPath.Create("*") }
         static member Factory = new Func<_>(fun () ->  MessageEnvelope.Default)
         static member Create(message, target, ?sender, ?props) = 
-            { Message = message; Properties = defaultArg props Map.empty; Sender = sender; Target = target }
+            { Message = message; Topic = "*"; Properties = defaultArg props Map.empty; Sender = defaultArg sender (ActorPath.Create("")); Target = target }
     
     type ActorRef(path:ActorPath, onPost : (MessageEnvelope -> unit)) =
          member val Path = path with get

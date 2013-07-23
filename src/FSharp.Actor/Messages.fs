@@ -5,9 +5,8 @@ type SystemMessage =
     | Restart of string
     | Link of ActorRef
     | UnLink of ActorRef
-    | Watch of ActorRef
-    | UnWatch 
+    | SetSupervisor of ActorRef
+    | RemoveSupervisor 
 
 type SupervisorMessage =
     | Errored of exn * ActorRef
-

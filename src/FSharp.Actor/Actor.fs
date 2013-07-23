@@ -21,7 +21,6 @@ type ActorStatus =
 
 and ActorOptions = {
     Mailbox : IMailbox<MessageEnvelope>
-    Path : ActorPath
     Supervisor : ActorRef option
     OnStartup : (Actor -> unit) list
     OnShutdown : (Actor -> unit) list
@@ -30,10 +29,9 @@ and ActorOptions = {
     Status : ActorStatus
 }
 with 
-    static member Create(path, ?mailbox, ?children, ?supervisor, ?startupPolicy, ?shutdownPolicy, ?restartPolicy) = 
+    static member Create(?mailbox, ?children, ?supervisor, ?startupPolicy, ?shutdownPolicy, ?restartPolicy) = 
         {
             Mailbox = defaultArg mailbox (new UnboundedInMemoryMailbox<MessageEnvelope>())
-            Path = path
             OnStartup = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
             OnShutdown = defaultArg shutdownPolicy [(fun (_:Actor) -> ())]
             OnRestart = defaultArg restartPolicy [(fun (_:Actor) -> ())]
@@ -42,10 +40,10 @@ with
             Status = ActorStatus.NotStarted
         }
 
-and Actor(options, computation : Actor -> Async<unit>) as self =
+and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self =
 
     let mutable cts = new CancellationTokenSource()
-    let mutable options = options
+    let mutable options = defaultArg options (ActorOptions.Create())
     let stateChangeSync = new obj()
 
     let updateOptions f =
@@ -99,10 +97,10 @@ and Actor(options, computation : Actor -> Async<unit>) as self =
         | SystemMessage.Restart(reason) -> restart actor reason
         | SystemMessage.Link(actorRef) -> updateOptions (fun o -> { o with Children =  actorRef :: o.Children })
         | SystemMessage.UnLink(actorRef) -> updateOptions (fun o -> { o with Children = List.filter ((<>) actorRef) o.Children })
-        | SystemMessage.Watch(sup) -> 
+        | SystemMessage.SetSupervisor(sup) -> 
              options <- { actor.Options with Supervisor = Some(sup) } 
              sup <-- Link(actor.Ref)
-        | SystemMessage.UnWatch -> 
+        | SystemMessage.RemoveSupervisor -> 
              match actor.Options.Supervisor with
              | Some(sup) -> 
                  options <- { actor.Options with Supervisor = None } 
@@ -124,10 +122,13 @@ and Actor(options, computation : Actor -> Async<unit>) as self =
     
 
     let ref = 
-        lazy new ActorRef(options.Path, post self)
+        lazy new ActorRef(path, post self)
     do
         start self
     
+    new(path:string, comp, ?options) =
+        new Actor(ActorPath.Create(path), comp, ?options = options)
+
     override x.ToString() = x.Ref.ToString()
     member x.Log with get() = Logger.Current
     member x.Options with get() = options
@@ -145,35 +146,35 @@ and Actor(options, computation : Actor -> Async<unit>) as self =
         member x.Dispose() = shutdown x (ActorStatus.Disposed)
 
     ///Creates an actor
-    static member create options computation = 
-        let actor = new Actor(options, computation)
+    static member create(path:string,computation,?options) = 
+        let actor = new Actor(path, computation, ?options = options)
         actor.Ref
         
     ///Links a collection of actors to a parent
-    static member link (linkees:seq<ActorRef>) (actor:ActorRef) =
+    static member link(linkees:seq<ActorRef>,actor:ActorRef) =
         Seq.iter (fun a -> actor <-- Link(a)) linkees
         actor
     
     ///Creates an actor that is linked to a set of existing actors as it children
-    static member createLinked options linkees computation =
-        Actor.link linkees (Actor.create options computation)
+    static member createLinked(path, computation, linkees, ?options) =
+        Actor.link(linkees,(Actor.create(path, computation, ?options = options)))
         
     ///Unlinks a set of actors from their parent.
-    static member unlink linkees (actor:ActorRef) =
+    static member unlink(linkees, (actor:ActorRef)) =
         linkees |> Seq.iter (fun l-> actor <-- UnLink(l))
         actor
 
     ///Sets the supervisor for a set of actors
-    static member watch (actors:seq<ActorRef>) (supervisor:ActorRef) =
-        actors |> Seq.iter (fun l-> l <-- Watch(supervisor))
+    static member watch((actors:seq<ActorRef>),(supervisor:ActorRef)) =
+        actors |> Seq.iter (fun l-> l <-- SetSupervisor(supervisor))
         
     ///Removes the supervisor for a set of actors
-    static member unwatch (actors:seq<ActorRef>) = 
-        actors |> Seq.iter (fun l -> l <-- UnWatch)
+    static member unwatch(actors:seq<ActorRef>) = 
+        actors |> Seq.iter (fun l -> l <-- RemoveSupervisor)
 
-type DeadLetterActor(name) =
-    inherit Actor(ActorOptions.Create(name), 
-                    (fun actor -> 
+type DeadLetterActor(name:string) =
+    inherit Actor(name, 
+                    (fun (actor:Actor) -> 
                         let rec loop() = 
                             async {
                                 do! actor.ReceiveEnvelope() |> Async.Ignore
