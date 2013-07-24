@@ -8,7 +8,7 @@ open FsCoreSerializer
 
 do
   ActorSystem.configure(
-        ActorSystemConfiguration.Create(
+        ActorSystemConfiguration.Create("node-1",
                 transports = [ZeroMQ.transport "tcp://127.0.0.1:6666" "tcp://127.0.0.1:6667" [] (new FsCoreSerializer())]
                 ))
 
@@ -18,9 +18,8 @@ let pingPong =
             let log = actor.Log
             let rec loop() = 
                 async {
-                    let! msg = actor.Receive()
-                    log.Debug(sprintf "Msg: %s" msg, None)
-                    //(msg.Sender |> string) ?<-- "pong"
+                    let! msg = actor.ReceiveEnvelope()
+                    log.Debug(sprintf "Msg: %A %A" msg.Message msg.Sender, None)
                     return! loop()
                 }
             loop()
@@ -28,7 +27,6 @@ let pingPong =
 
 [<EntryPoint>]
 let main argv =
-    Console.WriteLine("node-1 started");
     Console.ReadLine() |> ignore
    
     pingPong <-- "Hello"

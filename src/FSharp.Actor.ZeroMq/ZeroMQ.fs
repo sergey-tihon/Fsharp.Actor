@@ -15,6 +15,7 @@ module ZeroMQ =
         ZeroMQ.ZmqContext.Create()
 
     let publisher endpoint (serialiser:ISerializer) (event:IEvent<MessageEnvelope>) =
+        let endpointUri = new Uri(endpoint)
         async {
             try
                 use ctx = createContext()
@@ -22,6 +23,10 @@ module ZeroMQ =
                 socket.Bind(endpoint)
                 while true do
                     let! message = event |> Async.AwaitEvent
+                    let message = 
+                        { message with
+                            Sender = ActorPath.Update(message.Sender, transport = "zeromq", port = endpointUri.Port)
+                        }
                     let msg = ZmqMessage()
                     let header = Frame(Encoding.UTF8.GetBytes(String.Format("{0} ",[|message.Topic|]))) 
                     let payload = Frame(serialiser.Serialize(message))

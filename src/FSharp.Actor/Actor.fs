@@ -127,7 +127,7 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         start self
     
     new(path:string, comp, ?options) =
-        new Actor(ActorPath.Create(path), comp, ?options = options)
+        new Actor(ActorPath.op_Implicit(path), comp, ?options = options)
 
     override x.ToString() = x.Ref.ToString()
     member x.Log with get() = Logger.Current
