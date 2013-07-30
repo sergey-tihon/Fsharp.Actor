@@ -12,50 +12,82 @@ type ActorSystemNotConfigured() =
 
 type ActorSystemConfiguration = {
     Name : string
-    Register : IRegister
-    Transports : seq<ITransport>
-    Dispatcher : IDispatcher
-    Supervisor : ActorRef
+    Transports : ITransport list
 }
 with
-    static member Create(name, ?transports, ?supervisorStrategy, ?register, ?dispatch) = 
-        let strategy = defaultArg supervisorStrategy SupervisorStrategy.OneForOne
+    static member Default = ActorSystemConfiguration.Create("default-system")
+    static member Create(name, ?transports) =
         {
             Name = name 
-            Register = defaultArg register (new TrieBasedRegistry())
-            Transports = defaultArg transports []
-            Dispatcher = defaultArg dispatch (new DisruptorBasedDispatcher())
-            Supervisor = (new Supervisor(ActorPath.Create("supervisor", name), Supervisors.upNfailsPerActor 3 strategy)).Ref
+            Transports = (defaultArg transports [])
         } 
-    member x.Dispose() = 
-         x.Register.Dispose()
-         x.Dispatcher.Dispose()
-         x.Supervisor <-- Shutdown("ActorSystem disposed")
 
-type ActorSystem() =
 
-    static let mutable config = (ActorSystemConfiguration.Create("default-system"))
-
-    static member configure(?configuration:ActorSystemConfiguration) =
-        let configuration = defaultArg configuration (ActorSystemConfiguration.Create("default-system"))
-        configuration.Dispatcher.Configure(configuration.Register, configuration.Transports, configuration.Supervisor)
-        config <- configuration
-        Logger.Current.Debug(sprintf "Created ActorSystem %s" config.Name, None)
-
-    static member resolve(path) =
-        config.Register.Resolve(path)
-      
-    static member post path msg = 
-        config.Dispatcher.Post(MessageEnvelope.Create(msg, path))
+type ActorSystem(config:ActorSystemConfiguration) =
     
-    static member actorOf(name:string, computation, ?options) =
+    let localTransport = (new LocalTransport() :> ITransport)
+    let allTransports = localTransport :: config.Transports
+
+    let bindTransport (transport:ITransport) = 
+        transport.Receive 
+        |> Event.add (fun x -> 
+                if x.Target.System = config.Name || x.Target.System = "*"
+                then localTransport.Post(x))
+        transport.Start()
+
+    do
+        config.Transports 
+        |> Seq.iter bindTransport
+
+    member x.GetAll(path) =
+        allTransports |> Seq.choose (fun t -> t.TryGet path) 
+
+    member x.Post path msg = 
+        x.GetAll path |> Seq.iter (fun r -> r.Post(MessageEnvelope.Create(msg, path)))
+
+    member x.ActorOf(name:string, computation, ?options) =
          let actor = (new Actor(ActorPath.Create(name, config.Name), computation, ?options = options)).Ref
-         config.Register.Register actor
+         localTransport.Register(actor)
          actor
+
+    interface IDisposable with
+       member x.Dispose() = 
+            config.Transports |> Seq.iter (fun x -> x.Dispose())
+
+type Node() = 
+    
+    static let systems = ref Map.empty<string, ActorSystem> 
+
+    static member Configure(configurations) = 
+        systems := 
+            Seq.fold (fun s config -> 
+                        Map.add config.Name (new ActorSystem(config)) s
+                     ) (!systems) configurations
+
+    static member System
+        with get(indexer) : ActorSystem = 
+            (!systems).[indexer]
+
+    static member All() = 
+        (!systems) |> Map.toSeq |> Seq.map snd
+    
+    static member Shutdown() = 
+        (!systems) |> Map.toSeq |> Seq.map snd |> Seq.iter (fun s -> (s :> IDisposable).Dispose())
 
 [<AutoOpen>]
 module Operators =
 
-    let (!!) (path:ActorPath) = ActorSystem.resolve path
-    let (?<--) (path:string) msg = ActorSystem.post (ActorPath.op_Implicit(path)) msg
+    let (!!) (path:string) =
+        let path = ActorPath.Create(path)
+        match path.System with
+        | "*" -> 
+            Node.All() |> Seq.collect (fun sys -> sys.GetAll(path))
+        | sys -> 
+            Node.System(sys).GetAll(path)
+        |> Seq.toArray
 
+    let (<--) (refs:seq<ActorRef>) msg = 
+        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path)))
+
+    let (-->) msg (refs:seq<ActorRef>)  = 
+        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path)))

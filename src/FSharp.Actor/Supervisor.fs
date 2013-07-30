@@ -9,29 +9,29 @@ module SupervisorStrategy =
 
     let Forward (target:ActorRef) = 
         (fun (reciever:Actor) err (originator:ActorRef)  -> 
-           target <-- Errored(err, originator)
+           target <!- Errored(err, originator)
         )
 
     let AlwaysFail = 
         (fun (reciever:Actor) err (originator:ActorRef)  -> 
-            originator <-- Shutdown("Supervisor:AlwaysFail")
+            originator <!- Shutdown("Supervisor:AlwaysFail")
         )
 
     let FailAll = 
         (fun (reciever:Actor) err (originator:ActorRef)  -> 
             reciever.Options.Children 
-            |> List.iter ((-->) (Shutdown("Supervisor:FailAll")))
+            |> List.iter ((-!>) (Shutdown("Supervisor:FailAll")))
         )
 
     let OneForOne = 
        (fun (reciever:Actor) err (originator:ActorRef) -> 
-            originator <-- Restart("Supervisor:OneForOne")
+            originator <!- Restart("Supervisor:OneForOne")
        )
        
     let OneForAll = 
        (fun (reciever:Actor) err (originator:ActorRef)  -> 
             reciever.Options.Children 
-            |> List.iter ((-->) (Restart("Supervisor:OneForAll")))
+            |> List.iter ((-!>) (Restart("Supervisor:OneForAll")))
        )
 
 module Supervisors = 
@@ -48,7 +48,7 @@ module Supervisors =
                         strategy actor err targetActor                            
                         return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
                     | Some(count) -> 
-                        targetActor <-- SystemMessage.Shutdown("Too many restarts")                          
+                        targetActor <!- SystemMessage.Shutdown("Too many restarts")                          
                         return! supervisorLoop (Map.add targetActor.Path (count + 1) restarts)
                     | None ->
                         strategy actor err targetActor                              
@@ -60,7 +60,7 @@ type Supervisor(path:ActorPath, comp, ?children : seq<ActorRef>) as self =
     inherit Actor(path, comp (defaultArg children Seq.empty))
 
     do 
-        (defaultArg children Seq.empty) |> Seq.iter ((-->) (SetSupervisor(self.Ref)))
+        (defaultArg children Seq.empty) |> Seq.iter ((-!>) (SetSupervisor(self.Ref)))
 
     new(path:string, comp, ?children) =
         new Supervisor(path, comp, ?children = children)

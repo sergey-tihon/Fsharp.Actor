@@ -63,7 +63,7 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         updateOptions (fun o -> { o with Status = ActorStatus.Faulted(err) })
         async {
             match actor.Options.Supervisor with
-            | Some(sup) -> sup <-- Errored(err, actor.Ref)
+            | Some(sup) -> sup <!- Errored(err, actor.Ref)
             | None -> 
                 do Logger.Current.Error(sprintf "%A errored - shutting down" actor, Some err)
                 do shutdown actor (ActorStatus.Faulted(err))
@@ -99,12 +99,12 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         | SystemMessage.UnLink(actorRef) -> updateOptions (fun o -> { o with Children = List.filter ((<>) actorRef) o.Children })
         | SystemMessage.SetSupervisor(sup) -> 
              options <- { actor.Options with Supervisor = Some(sup) } 
-             sup <-- Link(actor.Ref)
+             sup <!- Link(actor.Ref)
         | SystemMessage.RemoveSupervisor -> 
              match actor.Options.Supervisor with
              | Some(sup) -> 
                  options <- { actor.Options with Supervisor = None } 
-                 sup <-- UnLink(actor.Ref)
+                 sup <!- UnLink(actor.Ref)
              | None -> ()
     
     let post (actor:Actor) msg = 
@@ -127,7 +127,7 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         start self
     
     new(path:string, comp, ?options) =
-        new Actor(ActorPath.op_Implicit(path), comp, ?options = options)
+        new Actor(ActorPath.Create(path), comp, ?options = options)
 
     override x.ToString() = x.Ref.ToString()
     member x.Log with get() = Logger.Current
@@ -152,7 +152,7 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         
     ///Links a collection of actors to a parent
     static member link(linkees:seq<ActorRef>,actor:ActorRef) =
-        Seq.iter (fun a -> actor <-- Link(a)) linkees
+        Seq.iter (fun a -> actor <!- Link(a)) linkees
         actor
     
     ///Creates an actor that is linked to a set of existing actors as it children
@@ -161,16 +161,16 @@ and Actor(path:ActorPath, computation : Actor -> Async<unit>, ?options) as self 
         
     ///Unlinks a set of actors from their parent.
     static member unlink(linkees, (actor:ActorRef)) =
-        linkees |> Seq.iter (fun l-> actor <-- UnLink(l))
+        linkees |> Seq.iter (fun l-> actor <!- UnLink(l))
         actor
 
     ///Sets the supervisor for a set of actors
     static member watch((actors:seq<ActorRef>),(supervisor:ActorRef)) =
-        actors |> Seq.iter (fun l-> l <-- SetSupervisor(supervisor))
+        actors |> Seq.iter (fun l-> l <!- SetSupervisor(supervisor))
         
     ///Removes the supervisor for a set of actors
     static member unwatch(actors:seq<ActorRef>) = 
-        actors |> Seq.iter (fun l -> l <-- RemoveSupervisor)
+        actors |> Seq.iter (fun l -> l <!- RemoveSupervisor)
 
 type DeadLetterActor(name:string) =
     inherit Actor(name, 
