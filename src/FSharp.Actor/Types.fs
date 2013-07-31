@@ -76,7 +76,7 @@ module Types =
                 System = defaultArg system path.System
                 Descriptor =  defaultArg transport path.Descriptor
             }
-        static member Empty = ActorPath.Create("*","")
+        static member Empty = ActorPath.Create(null,null)
         static member All = ActorPath.Create("*", "*")
 
     type MessageEnvelope = { 
@@ -84,13 +84,12 @@ module Types =
         mutable Properties : Map<string, obj>
         mutable Target : ActorPath
         mutable Sender : ActorPath
-        mutable Topic : string
     }
     with
-        static member Default = { Message = null; Topic = "*"; Properties = Map.empty; Sender = ActorPath.Empty; Target = ActorPath.Empty }
+        static member Default = { Message = null;  Properties = Map.empty; Sender = ActorPath.Empty; Target = ActorPath.Empty }
         static member Factory = new Func<_>(fun () ->  MessageEnvelope.Default)
         static member Create(message, target, ?sender, ?props) = 
-            { Message = message; Topic = "*"; Properties = defaultArg props Map.empty; Sender = defaultArg sender (ActorPath.Empty); Target = target }
+            { Message = message; Properties = defaultArg props Map.empty; Sender = defaultArg sender (ActorPath.Empty); Target = target }
     
     type ActorRef(path:ActorPath, onPost : (MessageEnvelope -> unit)) =
          member val Path = path with get

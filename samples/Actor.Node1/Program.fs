@@ -10,7 +10,7 @@ do
   Node.Configure [
         ActorSystemConfiguration.Create(
             "node-1",
-            [ZeroMQ.transport "tcp://127.0.0.1:6666" "tcp://127.0.0.1:6667" [] (new FsCoreSerializer())]
+            [ZeroMQ.transport "tcp://127.0.0.1:6666" "tcp://127.0.0.1:6667" (new FsCoreSerializer())]
         )]
 
 let pingPong = 

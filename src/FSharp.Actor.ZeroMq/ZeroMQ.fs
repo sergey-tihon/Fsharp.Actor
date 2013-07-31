@@ -27,36 +27,30 @@ module ZeroMQ =
                             Sender = ActorPath.Update(message.Sender, transport = descriptor)
                         }
                     let msg = ZmqMessage()
-                    let header = Frame(Encoding.UTF8.GetBytes(String.Format("{0} ",[|message.Topic|]))) 
                     let payload = Frame(serialiser.Serialize(message))
-                    socket.SendMessage(ZmqMessage([|header; payload|])) |> ignore
+                    socket.SendMessage(ZmqMessage([|payload|])) |> ignore
             with e -> 
                 printfn "Pub error: %A" e               
         }
 
-    let subscribe (endpoint:Uri) (topic:string list) (serialiser:ISerializer)  onReceived  = 
+    let subscribe (endpoint:Uri) (serialiser:ISerializer)  onReceived  = 
         async {
             try
                 use ctx = createContext()
                 use socket = ctx.CreateSocket(SocketType.SUB)
-
-                if topic |> List.isEmpty
-                then socket.SubscribeAll()
-                else topic |> List.iter (Encoding.UTF8.GetBytes >> socket.Subscribe)
+                socket.SubscribeAll()
                 socket.Connect(endpoint.AbsoluteUri)
 
                 while true do 
                     let msg = socket.ReceiveMessage()
-                    if msg.FrameCount = 2
-                    then
-                        let bytes = (msg.[1].Buffer) 
-                        let result = serialiser.Deserialize(bytes) :?> MessageEnvelope
-                        onReceived(result)                       
+                    let bytes = (msg.[0].Buffer) 
+                    let result = serialiser.Deserialize(bytes) :?> MessageEnvelope
+                    onReceived(result)                       
             with e -> 
                 printfn "Sub erro: %A" e
         }
 
-    let transport publishEndpoint subscribeEndpoint subscriptions serialiser = 
+    let transport publishEndpoint subscribeEndpoint serialiser = 
         let publishEndpoint, subscribeEndpoint = Uri(publishEndpoint), Uri(subscribeEndpoint)
         let publishEvent = new Event<_>()
         let receiveEvent = new Event<_>()
@@ -72,7 +66,7 @@ module ZeroMQ =
             member x.Receive with get() = receiveEvent.Publish
             member x.Start() =
                  Async.Start(publisher publishEndpoint serialiser publishEvent.Publish, cts.Token)
-                 Async.Start(subscribe subscribeEndpoint subscriptions serialiser receiveEvent.Trigger, cts.Token)
+                 Async.Start(subscribe subscribeEndpoint serialiser receiveEvent.Trigger, cts.Token)
             member x.Dispose() = 
                 cts.Cancel()
                 

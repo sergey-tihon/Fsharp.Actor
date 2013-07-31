@@ -87,7 +87,7 @@ module Operators =
         |> Seq.toArray
 
     let (<--) (refs:seq<ActorRef>) msg = 
-        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path)))
+        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path, ActorPath.Create(Environment.MachineName, null))))
 
     let (-->) msg (refs:seq<ActorRef>)  = 
-        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path)))
+        refs |> Seq.iter(fun x -> x.Post(MessageEnvelope.Create(msg, x.Path, ActorPath.Create(Environment.MachineName, null))))
