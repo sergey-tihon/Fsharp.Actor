@@ -1,7 +1,12 @@
 ﻿namespace FSharp.Actor
 
 open System
-open FSharp.Actor.Types
+
+type ILogger = 
+    abstract Debug : string * exn option -> unit
+    abstract Info : string * exn option -> unit
+    abstract Warning : string * exn option -> unit
+    abstract Error : string * exn option -> unit
 
 module Logger = 
 

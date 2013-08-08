@@ -5,6 +5,9 @@ module Async =
     open FSharp.Actor    
     open System.Threading.Tasks
 
+    type IReplyChannel<'a> =
+        abstract Reply : 'a -> unit
+
     type ResultCell<'a>() =
         let source = new TaskCompletionSource<'a>()
     

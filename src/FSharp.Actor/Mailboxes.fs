@@ -4,32 +4,52 @@ open System
 open System.Collections.Concurrent
 open System.Threading
 open FSharp.Actor
+open Microsoft.FSharp.Reflection
 
-type UnboundedInMemoryMailbox<'a>() =
-    let mutable inbox = ConcurrentQueue<'a>()
+type IMailbox = 
+     inherit IDisposable
+     abstract Receive<'a> : int option -> Async<'a>
+     abstract Post : 'a -> unit
+     abstract Length : int with get
+
+type Mailbox() =
+    let mutable inbox = ConcurrentQueue<obj>()
     let awaitMsg = new AutoResetEvent(false)
 
-    let rec await timeout cancellationToken = async {
-       match inbox.TryDequeue() with
+    let compareType (mType:Type) tType = 
+        if FSharpType.IsUnion(tType)
+        then mType.DeclaringType = tType
+        else mType = tType
+
+    let rec await msgTyp timeout = async {
+       match inbox.TryPeek() with
        | true, msg -> 
-          return msg
+            if compareType (msg.GetType()) msgTyp
+            then 
+                match inbox.TryDequeue() with
+                | true, msg -> return msg
+                | false, msg -> return! await msgTyp timeout   
+            else return! await msgTyp timeout   
        | false, _ -> 
+          
           let! recd = Async.AwaitWaitHandle(awaitMsg, timeout)
           if recd
-          then return! await timeout cancellationToken   
+          then return! await msgTyp timeout   
           else return raise(TimeoutException("Receive timed out"))     
     }
     
-    interface IMailbox<'a> with  
-        member this.Receive(timeout, cancellationToken) = await (defaultArg timeout Timeout.Infinite) cancellationToken
-        member this.Post(msg) = 
+    interface IMailbox with  
+        member this.Receive<'a>(timeout) = 
+            async { 
+                let! msg = await typeof<'a> (defaultArg timeout Timeout.Infinite)
+                return unbox<'a> msg
+            }
+        member this.Post( msg) = 
             inbox.Enqueue(msg)
             awaitMsg.Set() |> ignore
         member this.Length with get() = inbox.Count
-        member this.IsEmpty with get() = inbox.IsEmpty
         member x.Dispose() = 
             awaitMsg.Dispose()
             inbox <- null
-        member x.Restart() = inbox <- ConcurrentQueue()
 
 

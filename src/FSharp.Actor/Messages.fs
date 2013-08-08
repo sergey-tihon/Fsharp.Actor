@@ -1,12 +1,19 @@
 ﻿namespace FSharp.Actor
 
+
+#if INTERACTIVE
+open FSharp.Actor
+#endif
+
 type SystemMessage = 
     | Shutdown of string
-    | Restart of string
-    | Link of ActorRef
-    | UnLink of ActorRef
-    | SetSupervisor of ActorRef
-    | RemoveSupervisor 
-
-type SupervisorMessage =
     | Errored of exn * ActorRef
+    | Parent of ActorRef
+    | Link of ActorRef
+    | UnLink of ActorRef 
+
+type SupervisorResponse =
+    | Stop
+    | Restart
+    | Resume
+    | Forward of ActorRef * exn
