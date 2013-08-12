@@ -8,9 +8,10 @@ open FSharp.Actor
 type SystemMessage = 
     | Shutdown of string
     | Errored of exn * ActorRef
-    | Parent of ActorRef
+    | SetParent of ActorRef
+    | RemoveParent of ActorRef
     | Link of ActorRef
-    | UnLink of ActorRef 
+    | UnLink of ActorRef
 
 type SupervisorResponse =
     | Stop

@@ -3,8 +3,8 @@
 open System
 open System.Collections.Concurrent
 open System.Threading
-open FSharp.Actor
 open Microsoft.FSharp.Reflection
+
 
 type IMailbox = 
      inherit IDisposable
@@ -31,7 +31,6 @@ type Mailbox() =
                 | false, msg -> return! await msgTyp timeout   
             else return! await msgTyp timeout   
        | false, _ -> 
-          
           let! recd = Async.AwaitWaitHandle(awaitMsg, timeout)
           if recd
           then return! await msgTyp timeout   

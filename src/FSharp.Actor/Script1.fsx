@@ -8,68 +8,61 @@
 
 open FSharp.Actor
 
-type Result = 
-    | Result of float
-    | Error of exn
-
-let op name f = 
-    Actor.create("calculator/" + name, 
-        (fun ctx -> 
-            let rec loop (ctx:ActorContext) = 
-                async {
-                    try
-                        let! (a,b) = ctx.Receive<float * float>()
-                        ctx.Log.Info(sprintf "parent %A" ctx.Parent, None)
-                        ctx <-- Result(f a b)
-                        return! loop ctx
-                    with e -> 
-                        ctx <-- Error(e)
-                        return! loop ctx
-                }
-            loop ctx
-        ))
-
 type Op = 
     | Add of float * float
     | Multiply of float * float
     | Divide of float * float
     | Subtract of float * float
 
+let op f = 
+    (fun ctx ->
+        let rec loop (ctx:ActorContext) = 
+            async {
+                    let! (a,b) = ctx.Receive<float * float>()
+                    if a > 10. || b > 10.
+                    then raise(System.OverflowException("Values must be less than 10"))
+                    else ctx <-- (f a b)
+                    return! loop ctx
+            }
+        loop ctx)
+
 let calculator = 
-    let add = op "add" (+)
-    let mul = op "mul" (*)
-    let div = op "div" (/)
-    let sub = op "sub" (-)
-    let calculator =
-         Actor.create("calculator", 
-            (fun ctx -> 
-                let rec doCalc (ctx:ActorContext) = 
-                    async { 
-                      
-                        let! op = ctx.Receive()
-                        match op with
-                        | Add(a,b) -> add <-- (a,b)
-                        | Multiply(a,b) -> mul <-- (a,b)
-                        | Divide(a,b) -> div <-- (a,b)
-                        | Subtract(a,b) -> sub <-- (a,b)
-                        return! awaitResult op ctx
-                    }
-                and awaitResult op (ctx:ActorContext) = 
-                    async {
+        (fun ctx -> 
+            let rec doCalc (ctx:ActorContext) = 
+                async { 
+                    printfn "Waiting for message %A" ctx
+                    let! op = ctx.Receive()
+                    printfn "MSg : %A" op
+                    match op with
+                    | Add(a,b) -> !!"add" <-- (a,b)
+                    | Multiply(a,b) -> !!"mul" <-- (a,b)
+                    | Divide(a,b) -> !!"div" <-- (a,b)
+                    | Subtract(a,b) -> !!"sub" <-- (a,b)
+                    return! awaitResult op ctx
+                }
+            and awaitResult op (ctx:ActorContext) = 
+                async {
+                    let! result = ctx.Receive()
+                    ctx.Log.Info(sprintf "Result: %A = %f" op result, None)
+                    return! doCalc ctx  
+                }
+            doCalc ctx
+        )
 
-                        let! result = ctx.Receive()
-                        match result with
-                        | Result(r) -> ctx.Log.Info(sprintf "Result: %A = %A" op r, None)
-                        | Error(err) -> ctx.Log.Error(sprintf "%A errored" op, Some err)
-                        return! doCalc ctx  
-                    }
-                doCalc ctx
-            ))
+let calc =
+    Actor.create(calculator, 
+                 "calculator", 
+                 supervisorStrategy = SupervisorStrategy.OneForAll(fun ref _ err -> 
+                                                                        match err with
+                                                                        | :? System.OverflowException as ov -> Restart
+                                                                        | _ -> Stop),
+                 children = [
+                    Actor.create(op (+), "add");
+                    Actor.create(op (-), "sub");
+                    Actor.create(op (*), "mul");
+                    Actor.create(op (/), "div");
+                 ])
 
-    calculator <-- Link(add)
-    calculator <-- Link(mul)
-    calculator <-- Link(div)
-    calculator <-- Link(sub)
-    calculator
 
-calculator <-- Add(5.,7.)
+calc <-- Add(5.,7.)
+calc <-- Add(15., 7.)
