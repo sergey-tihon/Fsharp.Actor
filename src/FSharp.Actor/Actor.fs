@@ -1,6 +1,5 @@
 ﻿namespace FSharp.Actor
 
-open System
 open System.Runtime.Remoting.Messaging
 open System.Threading
 
@@ -9,26 +8,26 @@ open FSharp.Actor
 #endif
 
 type ActorOptions = {
-    Path : ActorPath
     Mailbox : IMailbox
     SupervisorStrategy : FaultHandler
+    Parent : ActorRef option
 }
 with 
-    static member create(?path, ?supervisorStrategy, ?mailbox) = 
+    static member create(?parent, ?supervisor, ?mailbox) = 
         {
-            Path = (defaultArg path (Guid.NewGuid().ToString()))
             Mailbox = defaultArg mailbox (new Mailbox() :> IMailbox)
-            SupervisorStrategy = defaultArg supervisorStrategy SupervisorStrategy.AlwaysFail
+            SupervisorStrategy = SupervisorStrategy.Forward
+            Parent = parent
         }
 
-type Actor internal(comp, options) as self = 
-    inherit ActorRef(options.Path)
+type Actor internal(path:ActorPath, comp, options) as self = 
+    inherit ActorRef(path)
 
     let mutable cts : CancellationTokenSource = null
     let mutable isErrored = false
 
     let options : ActorOptions = options
-    let ctx = new ActorContext(self, options.Mailbox)
+    let ctx = new ActorContext(self, options.Mailbox, ?parent = options.Parent)
 
     let shutdown(reason) = 
         cts.Cancel()
@@ -41,57 +40,46 @@ type Actor internal(comp, options) as self =
         async {
             ctx.LastError <- Some err
             match ctx.Parent with
-            | Some(parent) -> 
-                ctx.Log.Error(sprintf "%A errored raising to parent %A" self parent, Some err)
-                parent <-- Errored(err, self)
-            | None -> shutdown("error")
+            | Some(parent) -> parent <-- Errored(err, self)
+            | None -> shutdown()
         }
 
-    let rec loop (context:ActorContext) =
+    let rec loop context =
         async {
             CallContext.LogicalSetData("actor", self :> ActorRef)
-            CallContext.LogicalSetData("context", ctx)
             try
                 do! comp context 
-                do shutdown("graceful shutdown")
             with e -> 
                 return! errored e
         }
 
     let start() = 
         cts <- new CancellationTokenSource()
-        ctx.Log.Debug(sprintf "%A started" self, None)
         Async.Start(loop ctx, cts.Token)
 
     let restart() = 
-        shutdown("restarting")
+        shutdown()
         start()
 
-    do start()
+    do 
+        start()
 
     override x.Post(msg, ?from) = 
           match box msg with
           | :? SystemMessage as sysMsg when not(isErrored) ->
                match sysMsg with
                | Shutdown(reason) -> shutdown()
-               | SetParent(ref) -> 
-                    ctx.Parent <- Some ref
-               | RemoveParent(ref) -> 
-                    match ctx.Parent with
-                    | Some(p) when p = ref -> ctx.Parent <- None
-                    | _ -> ()
                | Link(ref) -> 
-                    ref <-- SetParent(ctx.Ref)
-                    ctx.AddChild(ref)
-               | UnLink(ref) -> 
-                    ref <-- RemoveParent(ctx.Ref)
-                    ctx.RemoveChild(ref)
+                    ref <-- Parent(ctx.Ref)
+                    ctx.Children.Add(ref)
+               | UnLink(ref) -> ctx.Children.Remove(ref) |> ignore
+               | Parent(ref) -> ctx.Parent <- Some(ref)
                | Errored(err, origin) -> 
                     ctx.Sender <- from
                     options.SupervisorStrategy.Handle(ctx, origin, err)
           | :? SupervisorResponse as supMsg -> 
                match supMsg with
-               | Stop -> shutdown("parent said stop")
+               | Stop -> shutdown()
                | Restart -> restart()
                | Resume -> ctx.LastError <- None
                | Forward(originator, err) -> 
@@ -101,16 +89,6 @@ type Actor internal(comp, options) as self =
             options.Mailbox.Post(msg)
           | _ -> () //FIXME: Need an undeliverable message stream....
 
-
-    static member create(comp, ?path, ?parent:ActorRef, ?supervisorStrategy, ?mailbox, ?children:seq<ActorRef>) = 
-         let actor = new Actor(comp, (ActorOptions.create(
-                                          ?path = path,
-                                          ?supervisorStrategy = supervisorStrategy,
-                                          ?mailbox = mailbox
-                                        )
-                                     )
-                              ) :> ActorRef
-        
-         parent |> Option.iter (fun p -> actor <-- SetParent(p))
-         children |> Option.iter (Seq.iter (fun child -> actor <-- Link(child)))
-         actor  
+    static member create(path, comp, ?options) = 
+         let actor = new Actor(path, comp, defaultArg options (ActorOptions.create()))
+         actor :> ActorRef

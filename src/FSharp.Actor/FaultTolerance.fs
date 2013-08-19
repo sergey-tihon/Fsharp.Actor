@@ -38,8 +38,7 @@ type FaultHandler(?maxFailures, ?minFailureTime) =
             | None -> 
                let stats = FailureStats.Create(child.Path, 1L, DateTimeOffset.UtcNow)
                state <- Map.add child.Path stats state
-               stats   
-                       
+               stats                  
          match stats.InWindow(maxFailures, minFailureTime) with
          | true -> 
             CallContext.LogicalSetData("actor", receiver.Ref)
@@ -54,10 +53,10 @@ module SupervisorStrategy =
                 originator <-- Stop
         }
 
-    let Forward (target:ActorRef) = 
+    let Forward = 
         { new FaultHandler() with
             member x.Strategy(receiver, originator, err) = 
-                target <-- Forward(originator, err)
+                receiver.Ref <-- Forward(originator, err)
         } 
 
     let FailAll = 
@@ -76,7 +75,7 @@ module SupervisorStrategy =
     let OneForAll decider = 
         { new FaultHandler() with
             member x.Strategy(receiver, originator, err) = 
-                for target in receiver.Children do
+                for target in (originator :: (receiver.Children |> Seq.toList)) do
                   let response : SupervisorResponse = (decider originator target err)
                   target <-- response
         }
