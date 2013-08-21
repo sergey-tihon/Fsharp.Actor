@@ -16,4 +16,3 @@ type SupervisorResponse =
     | Stop
     | Restart
     | Resume
-    | Forward of ActorRef * exn

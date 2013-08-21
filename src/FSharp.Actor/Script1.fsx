@@ -8,32 +8,24 @@
 
 open FSharp.Actor
 
-type Result = 
-    | Result of float
-    | Error of exn
-
-let op name f = 
-    Actor.create("calculator/" + name, 
-        (fun ctx -> 
-            let rec loop (ctx:ActorContext) = 
-                async {
-                    try
-                        let! (a,b) = ctx.Receive<float * float>()
-                        ctx.Log.Info(sprintf "parent %A" ctx.Parent, None)
-                        ctx <-- Result(f a b)
-                        return! loop ctx
-                    with e -> 
-                        ctx <-- Error(e)
-                        return! loop ctx
-                }
-            loop ctx
-        ))
-
 type Op = 
     | Add of float * float
     | Multiply of float * float
     | Divide of float * float
     | Subtract of float * float
+    | Result of string * float
+    | Error of exn
+
+let op name f = 
+    Actor.create("calculator/" + name,
+            let rec loop (ctx:ActorContext) ((left, right) : float * float) = 
+                async {
+                   ctx.Log.Info(sprintf "parent %A" ctx.Parent, None)
+                   ctx <-- Result(name, f left right)
+                   return HandleWith(loop)
+                }
+            HandleWith(loop)
+        )
 
 let calculator = 
     let add = op "add" (+)
@@ -42,29 +34,19 @@ let calculator =
     let sub = op "sub" (-)
     let calculator =
          Actor.create("calculator", 
-            (fun ctx -> 
-                let rec doCalc (ctx:ActorContext) = 
+                let rec doCalc (ctx:ActorContext) op = 
                     async { 
-                      
-                        let! op = ctx.Receive()
                         match op with
                         | Add(a,b) -> add <-- (a,b)
                         | Multiply(a,b) -> mul <-- (a,b)
                         | Divide(a,b) -> div <-- (a,b)
                         | Subtract(a,b) -> sub <-- (a,b)
-                        return! awaitResult op ctx
-                    }
-                and awaitResult op (ctx:ActorContext) = 
-                    async {
-
-                        let! result = ctx.Receive()
-                        match result with
-                        | Result(r) -> ctx.Log.Info(sprintf "Result: %A = %A" op r, None)
+                        | Result(op, r) -> ctx.Log.Info(sprintf "Result: %A = %A" op r, None)
                         | Error(err) -> ctx.Log.Error(sprintf "%A errored" op, Some err)
-                        return! doCalc ctx  
+                        return HandleWith(doCalc)
                     }
-                doCalc ctx
-            ))
+                HandleWith(doCalc)
+            )
 
     calculator <-- Link(add)
     calculator <-- Link(mul)

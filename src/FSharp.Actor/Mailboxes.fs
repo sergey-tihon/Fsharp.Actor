@@ -8,7 +8,7 @@ open Microsoft.FSharp.Reflection
 
 type IMailbox = 
      inherit IDisposable
-     abstract Receive<'a> : int option -> Async<'a>
+     abstract Receive : int option -> Async<obj>
      abstract Post : 'a -> unit
      abstract Length : int with get
 
@@ -21,28 +21,20 @@ type Mailbox() =
         then mType.DeclaringType = tType
         else mType = tType
 
-    let rec await msgTyp timeout = async {
-       match inbox.TryPeek() with
-       | true, msg -> 
-            if compareType (msg.GetType()) msgTyp
-            then 
-                match inbox.TryDequeue() with
-                | true, msg -> return msg
-                | false, msg -> return! await msgTyp timeout   
-            else return! await msgTyp timeout   
+    let rec await timeout = async {
+       match inbox.TryDequeue() with
+       | true, msg -> return msg 
        | false, _ -> 
-          
           let! recd = Async.AwaitWaitHandle(awaitMsg, timeout)
           if recd
-          then return! await msgTyp timeout   
+          then return! await timeout   
           else return raise(TimeoutException("Receive timed out"))     
     }
     
     interface IMailbox with  
-        member this.Receive<'a>(timeout) = 
+        member this.Receive(timeout) = 
             async { 
-                let! msg = await typeof<'a> (defaultArg timeout Timeout.Infinite)
-                return unbox<'a> msg
+                return! await (defaultArg timeout Timeout.Infinite)
             }
         member this.Post( msg) = 
             inbox.Enqueue(msg)

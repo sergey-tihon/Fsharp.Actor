@@ -33,7 +33,7 @@ module Primitives =
          static member (-->) (msg:'a, target:ActorRef) = send target msg
 
 
-    type ActorContext internal(actor:ActorRef, mailbox : IMailbox, ?parent) =
+    type ActorContext internal(actor:ActorRef, ?parent) =
         let mutable sender = None
         let mutable parent : ActorRef option = parent
 
@@ -48,10 +48,12 @@ module Primitives =
         member x.Parent with get() = parent and internal set(v) = parent <- v
         member x.Ref with get() =  actor
         member x.Sender with get() = sender and internal set(v) = sender <- v
-        
-        member x.Receive<'a>(?timeout) = mailbox.Receive<'a>(timeout)
         member x.Reply(msg) = x.Sender |> Option.iter (fun (s:ActorRef) -> s.Post(msg,Some x.Ref)) 
         member x.Post(target:ActorRef, msg) = target.Post(msg, Some x.Ref)
         static member (<--) (ctx:ActorContext, msg) = ctx.Reply(msg)
   
+    type HandleWith<'a> = 
+        | HandleWith of (ActorContext -> 'a -> Async<HandleWith<'a>>)
+        | TimeoutHandleWith of TimeSpan * (ActorContext -> 'a -> Async<HandleWith<'a>>)
+        | Terminate
 

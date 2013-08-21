@@ -53,12 +53,6 @@ module SupervisorStrategy =
                 originator <-- Stop
         }
 
-    let Forward = 
-        { new FaultHandler() with
-            member x.Strategy(receiver, originator, err) = 
-                receiver.Ref <-- Forward(originator, err)
-        } 
-
     let FailAll = 
         { new FaultHandler() with
             member x.Strategy(receiver, originator, err) = 
