@@ -2,26 +2,11 @@
 
 open System
 open System.Threading
-open FSharp.Actor
 open System.Runtime.Remoting.Messaging
-
-type FailureStats = {
-    ActorPath : string
-    mutable TotalFailures : int64
-    mutable LastFailure : DateTimeOffset option
-}
-with 
-    static member Create(path, ?failures, ?time) = 
-        { ActorPath = path; TotalFailures = defaultArg failures 0L; LastFailure = time }
-    member x.Inc() = 
-        x.TotalFailures <- x.TotalFailures + 1L
-        x.LastFailure <- Some DateTimeOffset.UtcNow
-    member x.InWindow(maxFailures, minFailureTime) = 
-        match x.TotalFailures < maxFailures, x.LastFailure with
-        | true, None -> true
-        | true, Some(last) -> (DateTimeOffset.UtcNow.Subtract(last)) < minFailureTime 
-        | false, _ -> false
-        
+       
+#if INTERACTIVE
+open FSharp.Actor
+#endif
 
 [<AbstractClass>]
 type FaultHandler(?maxFailures, ?minFailureTime) = 
@@ -44,6 +29,7 @@ type FaultHandler(?maxFailures, ?minFailureTime) =
             CallContext.LogicalSetData("actor", receiver.Ref)
             x.Strategy(receiver,child,err)
          | _ -> child.Post(Stop, receiver.Ref |> Some)
+         receiver.EventStream.Publish(stats)
 
 module SupervisorStrategy =
 
@@ -62,7 +48,7 @@ module SupervisorStrategy =
     let OneForOne decider = 
         { new FaultHandler() with
             member x.Strategy(receiver, originator, err) = 
-                let response : SupervisorResponse = (decider originator err)
+                let response : SupervisorResponse = (decider err)
                 originator <-- response
         }
        
@@ -70,7 +56,7 @@ module SupervisorStrategy =
         { new FaultHandler() with
             member x.Strategy(receiver, originator, err) = 
                 for target in (originator :: (receiver.Children |> Seq.toList)) do
-                  let response : SupervisorResponse = (decider originator target err)
+                  let response : SupervisorResponse = (decider err)
                   target <-- response
         }
 

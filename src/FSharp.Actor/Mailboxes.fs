@@ -3,23 +3,20 @@
 open System
 open System.Collections.Concurrent
 open System.Threading
-open FSharp.Actor
-open Microsoft.FSharp.Reflection
 
-type IMailbox = 
-     inherit IDisposable
-     abstract Receive : int option -> Async<obj>
-     abstract Post : 'a -> unit
-     abstract Length : int with get
+
+#if INTERACTIVE
+open FSharp.Actor
+#endif
+
+type MailboxMessage = { 
+    Payload : obj
+    Sender : ActorRef option
+}
 
 type Mailbox() =
-    let mutable inbox = ConcurrentQueue<obj>()
+    let mutable inbox = ConcurrentQueue<MailboxMessage>()
     let awaitMsg = new AutoResetEvent(false)
-
-    let compareType (mType:Type) tType = 
-        if FSharpType.IsUnion(tType)
-        then mType.DeclaringType = tType
-        else mType = tType
 
     let rec await timeout = async {
        match inbox.TryDequeue() with
@@ -34,10 +31,11 @@ type Mailbox() =
     interface IMailbox with  
         member this.Receive(timeout) = 
             async { 
-                return! await (defaultArg timeout Timeout.Infinite)
+                let! result = await (defaultArg timeout Timeout.Infinite)
+                return result.Payload, result.Sender
             }
-        member this.Post( msg) = 
-            inbox.Enqueue(msg)
+        member this.Post(msg, sender) = 
+            inbox.Enqueue({ Payload = msg; Sender = sender })
             awaitMsg.Set() |> ignore
         member this.Length with get() = inbox.Count
         member x.Dispose() = 

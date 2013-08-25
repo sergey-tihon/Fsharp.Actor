@@ -2,8 +2,6 @@
 
 module Trie =
     
-    open System.Collections.Generic
-
     type trie<'k, 'v when 'k : comparison> = Node of 'v option * Map<'k, trie<'k, 'v>>
 
     let isEmpty = function
@@ -48,5 +46,5 @@ module Trie =
         match (key,trie) with
         | [], Node (_,m) -> Node (None,m)
         | k::ks, Node (v,m) -> 
-              let t' = remove ks (Map.find k m) in
+              let t' = remove ks (Map.find k m) 
               Node (v, if t' = empty then Map.remove k m else Map.add k t' m)
