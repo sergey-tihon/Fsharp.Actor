@@ -55,15 +55,15 @@ let calculator =
 
 let operations = 
     ["add", op (+); "mul", op (*); "div", op (/); "sub", op (-)]
-    |> List.map (fun (name, f) -> Actor.create(name, f, eventStream, id) |> Actor.register)
+    |> List.map (fun (name, f) -> Actor.create(name, eventStream, id, f) |> Actor.register)
 
 let calculatorRef = 
-    Actor.create("calculator", calculator, eventStream, (fun config -> 
-                                                            { config with 
-                                                                SupervisorStrategy = SupervisorStrategy.OneForOne (function 
-                                                                                                                   | :? System.OverflowException -> Restart
-                                                                                                                   | _ -> Stop)
-                                                            }))
+    Actor.create("calculator", eventStream, (fun config -> 
+                                               { config with 
+                                                   SupervisorStrategy = SupervisorStrategy.OneForOne (function 
+                                                                                                      | :? System.OverflowException -> Restart
+                                                                                                      | _ -> Stop)
+                                               }), calculator)
     |> Actor.link operations
 
 
