@@ -37,7 +37,14 @@ type Actor<'a> internal(path:ActorPath, comp, options) as self =
 
     let copyStoredMessages() = 
         !retroActiveMailbox |> List.rev |> List.iter (options.Mailbox.Post) 
-        retroActiveMailbox := []
+        retroActiveMailbox := []    
+
+    let restart(reason) = 
+        copyStoredMessages()
+        options.EventStream.Publish(ActorEvents.ActorRestart(self))
+        if ctx.LastError.IsSome
+        then ctx.Log.Debug("{0} restarted due to {1} Error: {2}",[|self;reason;ctx.LastError.Value.Message|], None)
+        else ctx.Log.Debug("{0} restarted due to {1}",[|self;reason|], None)
 
     let shutdown(reason) = 
         cts.Cancel()
@@ -71,13 +78,13 @@ type Actor<'a> internal(path:ActorPath, comp, options) as self =
                         ctx.Parent <- Some(ref)
                         return! receive ctx comp
                     | Errored(err, origin) -> 
-                         printfn "Handling error %A %A" err origin
                          options.SupervisorStrategy.Handle(ctx, origin, err)
                          return! receive ctx comp
                 | :? SupervisorResponse as supMsg -> 
                     match supMsg with
                     | Stop -> shutdown()
                     | Restart -> 
+                        ctx.LastError <- None
                         return! receive ctx initialComputation
                     | Resume -> 
                         ctx.LastError <- None
@@ -99,7 +106,6 @@ type Actor<'a> internal(path:ActorPath, comp, options) as self =
                     options.EventStream.Publish(MessageEvents.Undeliverable(msg, typeof<'a>, msg.GetType(), Some (self :> ActorRef)))
                     return! receive ctx comp
             with e -> 
-                printfn "Error"
                 return! errored e
         }
 
@@ -113,7 +119,7 @@ type Actor<'a> internal(path:ActorPath, comp, options) as self =
               match supMsg with
               | Stop -> shutdown()
               | Restart ->
-                  copyStoredMessages()
+                  restart("")
                   return! receive ctx initialComputation
               | Resume -> 
                   ctx.LastError <- None
