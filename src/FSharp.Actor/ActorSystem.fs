@@ -1,10 +1,19 @@
 ﻿namespace FSharp.Actor
 
-type ActorSystem internal(systemName:string, ?supervisorStrategy) = 
-     
-    let eventStream = new EventStream() :> IEventStream
-    let logger = Logger.create ("ActorSystem: " + systemName)
+open System
+open System.Reflection
+open Microsoft.FSharp.Reflection
+
+#if INTERACTIVE
+open FSharp.Actor
+#endif
+
+type ActorSystem(?systemName:string) = 
     
+    let actors : Trie.trie<string, ActorRef> ref = ref Trie.empty
+    let systemName = defaultArg systemName (System.Reflection.Assembly.GetEntryAssembly().GetName().Name)
+    let eventStream = new EventStream() :> IEventStream
+    let logger = Logger.create ("ActorSystem-"+systemName)
     let systemSupervisor =
         let rec supervisorLoop (ctx:ActorContext) (msg:'a) = 
                    async { 
@@ -13,7 +22,7 @@ type ActorSystem internal(systemName:string, ?supervisorStrategy) =
         Actor.create(systemName + "/supervisor", eventStream, 
                       (fun config -> 
                           { config with
-                              SupervisorStrategy = defaultArg supervisorStrategy SupervisorStrategy.OneForOne (fun _ -> Restart)
+                              SupervisorStrategy = SupervisorStrategy.OneForOne (fun _ -> Restart)
                           }
                       ), Receive(supervisorLoop))
 
@@ -31,8 +40,8 @@ type ActorSystem internal(systemName:string, ?supervisorStrategy) =
                              )
 
     member x.Register(name:string, comp:Receive<'a>, ?config) = 
-        let actor = Actor.create(systemName + "/" + name, eventStream, defaultArg config id, comp) |> Actor.register
+        let actor = Actor.create(name, eventStream, defaultArg config id, comp) |> Actor.register
         Actor.link [actor] systemSupervisor |> ignore
         actor
-        
+     
 

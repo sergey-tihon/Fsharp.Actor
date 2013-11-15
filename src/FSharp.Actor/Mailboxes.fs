@@ -41,5 +41,3 @@ type Mailbox() =
         member x.Dispose() = 
             awaitMsg.Dispose()
             inbox <- null
-
-

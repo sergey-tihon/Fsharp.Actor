@@ -47,6 +47,9 @@
     <Compile Include="Messages.fs" />
     <Compile Include="FaultTolerance.fs" />
     <Compile Include="Actor.fs" />
+    <Compile Include="ActorSystem.fs" />
+    <Compile Include="Remoting.fs" />
+    <Compile Include="ActorConfig.fs" />
     <None Include="Script1.fsx" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />

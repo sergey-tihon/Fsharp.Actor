@@ -1,5 +1,6 @@
 ﻿namespace FSharp.Actor
 
+open System
 open System.Runtime.Remoting.Messaging
 open System.Threading
 
@@ -8,6 +9,7 @@ open FSharp.Actor
 #endif
 
 type ActorOptions = {
+    Name : string
     Mailbox : IMailbox
     SupervisorStrategy : FaultHandler
     Parent : ActorRef option
@@ -15,8 +17,9 @@ type ActorOptions = {
     EventStream : IEventStream
 }
 with 
-    static member create(eventStream, ?parent, ?supervisor, ?mailbox, ?timeout) = 
+    static member create(eventStream, ?name, ?parent, ?supervisor, ?mailbox, ?timeout) = 
         {
+            Name = defaultArg name (Guid.NewGuid().ToString())
             Mailbox = defaultArg mailbox (new Mailbox() :> IMailbox)
             SupervisorStrategy = SupervisorStrategy.AlwaysFail
             Parent = parent

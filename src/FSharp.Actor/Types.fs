@@ -96,6 +96,29 @@ module Types =
         member x.Post(target:ActorRef, msg) = target.Post(msg, Some x.Ref)
         static member (<--) (ctx:ActorContext, msg) = ctx.Reply(msg)
 
+    type SystemMessage = 
+        | Shutdown of string
+        | Errored of exn * ActorRef
+        | Parent of ActorRef
+        | Link of ActorRef
+        | UnLink of ActorRef 
+    
+    type SupervisorResponse =
+        | Stop
+        | Restart
+        | Resume
+    
+    type ActorEvents = 
+        | ActorStarted of ActorRef
+        | ActorShutdown of ActorRef
+        | ActorRestart of ActorRef
+        | ActorErrored of ActorRef * exn
+        | ActorAddedChild of ActorRef * ActorRef
+        | ActorRemovedChild of ActorRef * ActorRef
+    
+    type MessageEvents = 
+        | Undeliverable of obj * Type * Type * ActorRef option 
+    
     type FailureStats = {
         ActorPath : string
         mutable TotalFailures : int64
@@ -112,4 +135,46 @@ module Types =
             | true, None -> true
             | true, Some(last) -> (DateTimeOffset.UtcNow.Subtract(last)) < minFailureTime 
             | false, _ -> false
+
+    [<AbstractClass>]
+    type FaultHandler(?maxFailures, ?minFailureTime) = 
+        let mutable state = Map.empty<string, FailureStats>
+        let maxFailures = defaultArg maxFailures 10L
+        let minFailureTime = defaultArg minFailureTime (TimeSpan.FromMinutes(1.))
+        
+        abstract Strategy : ActorContext * ActorRef * exn -> unit
+    
+        member x.Handle(receiver:ActorContext, child:ActorRef, err:exn) =
+             let stats = 
+                match state.TryFind(child.Path) with
+                | Some(stats) -> stats
+                | None -> 
+                   let stats = FailureStats.Create(child.Path, 1L, DateTimeOffset.UtcNow)
+                   state <- Map.add child.Path stats state
+                   stats                  
+             match stats.InWindow(maxFailures, minFailureTime) with
+             | true -> 
+                CallContext.LogicalSetData("actor", receiver.Ref)
+                x.Strategy(receiver,child,err)
+             | _ -> child.Post(Stop, receiver.Ref |> Some)
+             receiver.EventStream.Publish(stats)
+
+    type Metrics = 
+        | Failure of FailureStats
+
+    type ActorOptions = {
+        Name : string
+        Mailbox : IMailbox
+        SupervisorStrategy : FaultHandler
+        Parent : ActorRef option
+        ReceiveTimeout : int option
+        EventStream : IEventStream
+    }
+
+    [<AttributeUsage(AttributeTargets.Method)>]
+    type ActorDefinition(name:string, ?opts:ActorOptions) = 
+        inherit Attribute()
+        member val Name = name with get
+        member val Options = opts with get
+
 

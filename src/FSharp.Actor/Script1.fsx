@@ -9,25 +9,11 @@
 #load "Messages.fs"
 #load "FaultTolerance.fs"
 #load "Actor.fs"
+#load "ActorSystem.fs"
 
 open FSharp.Actor
 
-let eventStream = new EventStream() :> IEventStream
-let logger = Logger.create "test"
-
-eventStream.Subscribe(function
-                      | ActorStarted(ref) -> logger.Debug("Actor Started {0}",[|ref|], None)
-                      | ActorShutdown(ref) -> logger.Debug("Actor Shutdown {0}",[|ref|], None)
-                      | ActorRestart(ref) -> logger.Debug(sprintf "Actor Restart {0}",[|ref|], None)
-                      | ActorErrored(ref,err) -> logger.Error(sprintf "Actor Errored {0}", [|ref|], Some err)
-                      | ActorAddedChild(parent, ref) -> logger.Debug(sprintf "Linked Actors {1} -> {0}",[|parent; ref|], None)
-                      | ActorRemovedChild(parent, ref) -> logger.Debug(sprintf "UnLinked Actors {1} -> {0}",[|parent;ref|], None)
-                      )
-
-eventStream.Subscribe(function
-                      | Undeliverable(msg, expectedType, actualType, target) -> logger.Warning("Couldn't deliver {0} to {1} expected type {2}, but goet actual type {3}", [|msg; target; expectedType; actualType|], None)
-                     )
-                                     
+let system = ActorSystem("calculator")              
 
 type Op = 
     | Op of string * (float * float)
@@ -55,15 +41,15 @@ let calculator =
 
 let operations = 
     ["add", op (+); "mul", op (*); "div", op (/); "sub", op (-)]
-    |> List.map (fun (name, f) -> Actor.create(name, eventStream, id, f) |> Actor.register)
+    |> List.map (fun (name, f) -> system.Register(name, f))
 
 let calculatorRef = 
-    Actor.create("calculator", eventStream, (fun config -> 
-                                               { config with 
-                                                   SupervisorStrategy = SupervisorStrategy.OneForOne (function 
-                                                                                                      | :? System.OverflowException -> Restart
-                                                                                                      | _ -> Stop)
-                                               }), calculator)
+    system.Register("dispatcher",  calculator, (fun config -> 
+            { config with 
+                SupervisorStrategy = SupervisorStrategy.OneForOne (function 
+                                                                   | :? System.OverflowException -> Restart
+                                                                   | _ -> Stop)
+            }))
     |> Actor.link operations
 
 
