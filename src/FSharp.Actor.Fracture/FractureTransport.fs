@@ -4,45 +4,27 @@ open System
 open FSharp.Actor
 open System.Threading
 open System.Collections.Concurrent
-open FSharp.Actor
-open FSharp.Actor.Types
-open FSharp.Actor.Remoting
 
 open Fracture
 open Fracture.Common
 
-type FractureMessage = {
-    Sender : ActorPath option
-    Target : ActorPath
-    Type : Type
-    Body : obj
-}
-
-type FractureTransport(listenPort:int, ?serialiser:ISerialiser,?log:ILogger) = 
-    let serialiser = defaultArg serialiser (Serialisers.Binary)
-    let log = defaultArg log Logging.Console
-    let scheme = "actor.fracture"
+type FractureTransport(listenPort:int,?log:ILogger) = 
+    let log = defaultArg log (Logger.Console ("fracture:" + (string listenPort)))
+    let scheme = "fracture"
+    let received = new Event<_>()
         
     let onReceived(msg:byte[], server:TcpServer, socketDescriptor:SocketDescriptor) =
-        let msg = serialiser.Deserialise msg 
-        if msg <> null
-        then 
-            let msg = msg |> unbox<FractureMessage>
-            match Registry.Actor.tryFind (Path.toLocal msg.Target)  with
-            | Some(a) -> 
-                match msg.Body with
-                | :? SystemMessage as msg -> 
-                    a.PostSystemMessage(msg, Some a)
-                | msg -> a.Post(msg, Some a)
-            | None -> log.Warning(sprintf "%A recieved message for %A from %A but could not resolve actor" scheme msg.Target (socketDescriptor.RemoteEndPoint.Address.ToString()), None)
+        match Remoting.deserialize msg with
+        | Some(rm) -> received.Trigger(rm)
+        | None -> log.Warning("Unable to process remote mesage", [||], None) //TODO: Log properly
 
     do
         try
             let l = Fracture.TcpServer.Create(onReceived)
             l.Listen(Net.IPAddress.Any, listenPort)
-            log.Debug(sprintf "%A transport listening on %d" scheme listenPort, None)
+            log.Debug("{0} transport listening on {1}",[|scheme;listenPort|], None)
         with e -> 
-            log.Error(sprintf "%A failed to create listener on port %d" scheme listenPort, Some e)
+            log.Error("{0} failed to create listener on port {1}",[|scheme;listenPort|], Some e)
             reraise()
 
     let clients = new ConcurrentDictionary<Uri, Fracture.TcpClient>()
@@ -79,7 +61,7 @@ type FractureTransport(listenPort:int, ?serialiser:ISerialiser,?log:ILogger) =
                 let endpoint = new Net.IPEndPoint(ip,port)
                 let connWaitHandle = new AutoResetEvent(false)
                 let client = new Fracture.TcpClient()
-                client.Connected |> Observable.add(fun x -> log.Debug(sprintf "%A client connected on %A" scheme x, None); connWaitHandle.Set() |> ignore) 
+                client.Connected |> Observable.add(fun x -> log.Debug("%A client connected on %A" scheme x, None); connWaitHandle.Set() |> ignore) 
                 client.Disconnected |> Observable.add (fun x -> log.Debug(sprintf "%A client disconnected on %A" scheme x, None); remove address clients)
                 client.Start(endpoint)
                 let! connected = Async.AwaitWaitHandle(connWaitHandle, 10000)

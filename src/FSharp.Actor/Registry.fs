@@ -35,7 +35,7 @@ module Registry =
         | a -> a |> List.head |> Some
 
     let register (actor:ActorRef) = 
-        actors := Trie.add (computeKeysFromPath actor.Path) actor !actors
+        actors := Trie.add (computeKeysFromPath (string actor.Path)) actor !actors
         actor
 
     let remove address = 

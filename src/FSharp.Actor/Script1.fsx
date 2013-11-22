@@ -24,7 +24,7 @@ let inline op f =
         async {
            if left > 10. || right > 10.
            then raise(System.OverflowException())
-           else ctx <-- Result(ctx.Ref.Path, f left right)
+           else ctx <-- Result(string ctx.Ref.Path, f left right)
            return Receive(op')
         }
     Receive(op')
@@ -53,5 +53,5 @@ let calculatorRef =
     |> Actor.link operations
 
 
-calculatorRef <-- Op("add", (5.,7.))
-calculatorRef <-- Op("add", (15.,7.))
+calculatorRef <-- Op("calculator/add", (5.,7.))
+calculatorRef <-- Op("calculator/add", (15.,7.))

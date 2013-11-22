@@ -34,7 +34,7 @@ type Actor<'a> internal(path:ActorPath, comp, options) as self =
     let mutable isErrored = false
 
     let options : ActorOptions = options
-    let ctx = new ActorContext(self, Logger.create ("Actor: " + path), options.EventStream, ?parent = options.Parent)
+    let ctx = new ActorContext(self, Logger.create ("Actor: " + (string path)), options.EventStream, ?parent = options.Parent)
     let initialComputation = comp
     let retroActiveMailbox = ref []
 

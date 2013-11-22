@@ -44,7 +44,14 @@ module Types =
         abstract Unsubscribe<'a> : unit -> unit
         abstract Unsubscribe : string -> unit
 
-    type ActorPath = string
+    type ActorPath = 
+        {
+            System: string
+            Name: string
+        }
+        with
+            override x.ToString() = 
+                x.System + "/" + x.Name
 
     type Receive<'a> = 
         | Receive of (ActorContext -> 'a -> Async<Receive<'a>>)
@@ -146,11 +153,11 @@ module Types =
     
         member x.Handle(receiver:ActorContext, child:ActorRef, err:exn) =
              let stats = 
-                match state.TryFind(child.Path) with
+                match state.TryFind(string child.Path) with
                 | Some(stats) -> stats
                 | None -> 
-                   let stats = FailureStats.Create(child.Path, 1L, DateTimeOffset.UtcNow)
-                   state <- Map.add child.Path stats state
+                   let stats = FailureStats.Create(string child.Path, 1L, DateTimeOffset.UtcNow)
+                   state <- Map.add (string child.Path) stats state
                    stats                  
              match stats.InWindow(maxFailures, minFailureTime) with
              | true -> 

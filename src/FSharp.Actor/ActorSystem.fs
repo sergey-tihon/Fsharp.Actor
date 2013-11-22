@@ -19,7 +19,7 @@ type ActorSystem(?systemName:string) =
                    async { 
                        return Receive(supervisorLoop)
                    }
-        Actor.create(systemName + "/supervisor", eventStream, 
+        Actor.create({ System = systemName; Name = "supervisor" }, eventStream, 
                       (fun config -> 
                           { config with
                               SupervisorStrategy = SupervisorStrategy.OneForOne (fun _ -> Restart)
@@ -40,7 +40,7 @@ type ActorSystem(?systemName:string) =
                              )
 
     member x.Register(name:string, comp:Receive<'a>, ?config) = 
-        let actor = Actor.create(name, eventStream, defaultArg config id, comp) |> Actor.register
+        let actor = Actor.create({ System = systemName; Name = name}, eventStream, defaultArg config id, comp) |> Actor.register
         Actor.link [actor] systemSupervisor |> ignore
         actor
      
