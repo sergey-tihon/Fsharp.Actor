@@ -52,17 +52,18 @@
   <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
   <ItemGroup>
     <Compile Include="Trie.fs" />
-    <Compile Include="Types.fs" />
+    <Compile Include="Mailbox.fs" />
+    <Compile Include="Behaviour.fs" />
+    <Compile Include="Actor.Types.fs" />
+    <Compile Include="Infrastructure.Types.fs" />
     <Compile Include="Logger.fs" />
-    <Compile Include="Mailboxes.fs" />
     <Compile Include="EventStream.fs" />
-    <Compile Include="Registry.fs" />
-    <Compile Include="Messages.fs" />
-    <Compile Include="FaultTolerance.fs" />
+    <Compile Include="Transport.fs" />
+    <Compile Include="Actor.Operations.fs" />
+    <Compile Include="Actor.Impl.fs" />
+    <Compile Include="Actor.Dsl.fs" />
     <Compile Include="Actor.fs" />
-    <Compile Include="ActorSystem.fs" />
-    <Compile Include="Remoting.fs" />
-    <Compile Include="ActorConfig.fs" />
+    <Compile Include="Supervisor.fs" />
     <None Include="Script1.fsx" />
     <None Include="packages.config" />
     <Compile Include="AssemblyInfo.fs" />
@@ -78,10 +79,6 @@
     </Reference>
     <Reference Include="Disruptor.Scheduler">
       <HintPath>..\..\packages\Disruptor-DamageBoy-IH.2.8.0.1\lib\net40\Disruptor.Scheduler.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="FsCoreSerializer">
-      <HintPath>..\..\packages\FsCoreSerializer.0.5.1\lib\net45\FsCoreSerializer.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
