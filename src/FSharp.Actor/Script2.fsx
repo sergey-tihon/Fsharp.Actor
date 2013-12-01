@@ -4,7 +4,6 @@
 #load "Mailbox.fs"
 #load "Behaviour.fs"
 #load "Logger.fs"
-
 #load "Transport.fs"
 #load "Actor.Operations.fs"
 #load "Actor.Impl.fs"
@@ -18,7 +17,6 @@ open FSharp.Actor.DSL
 let baselineConfig = 
     actor { 
         path "testActor"
-        maxQueueSize 256
         supervisedBy !!"/foo/bar"
         messageHandler (fun (ctx,msg) -> 
                           let rec loop (ctx:ActorContext,msg:string) = 
