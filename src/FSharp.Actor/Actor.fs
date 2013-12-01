@@ -6,9 +6,9 @@ open FSharp.Actor
 #endif
 
 module Actor = 
-
+    
     let create config = 
-        Actor(config) :> IActor<_>
+        (new Actor<_>(config))
 
     let spawn config = 
         config |> (create >> register)

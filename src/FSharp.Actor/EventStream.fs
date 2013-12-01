@@ -3,24 +3,29 @@
 open System
 open System.Threading
 open System.Collections.Generic
-open Microsoft.FSharp.Reflection
-
 #if INTERACTIVE
 open FSharp.Actor
 #endif
+open FSharp.Actor.DSL
 
-type EventStream(?size) = 
+type EventStream(name) = 
     let logger = Logger.create (typeof<EventStream>.FullName)
-    let disruptor = Disruptor.Dsl.Disruptor(Event.Factory, defaultArg size 1024, Tasks.TaskScheduler.Default)
+    let counter = ref 0L
     let subscriptions = new Dictionary<string, (Event -> unit)>()
-    let consumer = 
-        { new Disruptor.IEventHandler<Event> with
-            member x.OnNext(data, sequence, endOfBatch) =
-                match subscriptions.TryGetValue(data.Type) with
-                | true, f -> 
-                    f(data)
-                | false, _ -> ()
-        }
+    let actor =
+        actor {
+            path name
+            messageHandler (fun inp ->
+                let rec loop (ctx:ActorContext, msg:Event) =
+                    async {
+                       match subscriptions.TryGetValue(msg.Type) with
+                       | true, f -> f(msg)
+                       | false, _ -> ()
+                       return Behaviour(loop)
+                    } 
+                loop inp   
+            )
+        } |> (fun c -> new Actor<_>(c) :> IActor<_>)
 
     let addSubscription typ f = 
         subscriptions.Add(typ, f)
@@ -29,11 +34,11 @@ type EventStream(?size) =
         subscriptions.Remove(typ) |> ignore
 
     let publish typ (payload:'a) = 
-        if (box payload) <> null then disruptor.PublishEvent(fun msg seq -> msg.SetPayload(seq, typ, payload))
+        if (box payload) <> null 
+        then
+            let event = Event.Factory.Invoke().SetPayload(Interlocked.Increment(counter), typ, payload)
+            actor.Post(event, Null)
     
-    do
-        disruptor.HandleEventsWith([| consumer |]) |> ignore
-        disruptor.Start() |> ignore
 
     interface IEventStream with
         member x.Publish(typ, payload : 'a) = publish typ payload
@@ -42,3 +47,4 @@ type EventStream(?size) =
         member x.Subscribe<'a>(callback) = addSubscription (typeof<'a>.FullName) (fun event -> event.As<'a>() |> callback)
         member x.Unsubscribe(typ) = removeSubscription typ
         member x.Unsubscribe<'a>() = removeSubscription (typeof<'a>.FullName)
+        

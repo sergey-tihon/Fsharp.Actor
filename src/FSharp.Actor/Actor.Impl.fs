@@ -12,16 +12,18 @@ open FSharp.Actor
 #endif
 
 type Actor<'a>(config:ActorDefinition<'a>) as self = 
-    let mailbox = new Mailbox<ActorMessage<'a>>(10) :> IMailbox<ActorMessage<'a>>
+    let mailbox = config.Mailbox
+    let logger = Logger.create config.Path
     let mutable config = config
+    let mutable ctx = { Current = Local(self); Logger = logger; Children = []; LastError = None; Sender = Null }
     let mutable children = []
 
     let rec run (Behaviour(msgHandler) as behave) = 
        async {
-           let! msg = mailbox.Receive()
+           let! msg = mailbox.Receive(config.ReceiveTimeout)
            match msg with
            | Shutdown -> return! shutdown()
-           | Restart -> return! run config.Behaviour
+           | Restart -> return! restart()
            | SetSupervisor(ref) ->
                config <- { config with Supervisor =  ref }
                return! run behave
@@ -30,32 +32,45 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
            | Unlink(ref) -> 
                children <- (List.filter ((<>) ref) children)
            | Msg(msg) -> 
-               let! result = msgHandler ({ Current = Local(self); Sender = msg.Sender; Children = children }, msg.Message) |> Async.Catch
+               let! result = msgHandler ({ ctx with Sender = msg.Sender}, msg.Message) |> Async.Catch
                match result with
                | Choice1Of2(next) ->  return! run next
                | Choice2Of2(err) -> 
                    return! handleError err
        }
     
+    and restart() = 
+        async { 
+            config.EventStream.Publish(ActorEvents.ActorRestart(Local(self)))
+            if ctx.LastError.IsSome
+            then logger.Debug("{0} restarted due to Error: {1}",[|self;ctx.LastError.Value.Message|], None)
+            else logger.Debug("{0} restarted",[|self|], None)
+            return! run config.Behaviour
+        }
+
     and shutdown() = 
         async {
-            printf "Actor(%s) shutdown" config.Path
+            config.EventStream.Publish(ActorEvents.ActorShutdown(Local(self)))
+            if ctx.LastError.IsSome
+            then logger.Debug("{0} restarted due to Error: {1}",[|self;ctx.LastError.Value.Message|], None)
+            else logger.Debug("{0} restarted",[|self|], None)
             return ()
         }
 
     and handleError (err:exn) =
         let rec waitSupervisorResponse() = 
             async {                
-                    let! msg = mailbox.Receive()
+                    let! msg = mailbox.Receive(config.ReceiveTimeout)
                     match msg with
                     | Shutdown -> return! shutdown()
-                    | Restart -> return! run config.Behaviour
+                    | Restart -> return! restart()
                     | _ -> return! waitSupervisorResponse() 
             }
         async {
+            ctx <- { ctx with LastError = Some err }
+            config.EventStream.Publish(ActorEvents.ActorErrored(Local(self), err))
             match config.Supervisor with
             | Null ->
-                printfn "No supervisor couldn't handle error %A" err
                 return! shutdown()  
             | ref -> 
                 ref |> post <| Errored(err)
@@ -72,10 +87,16 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
 
     override x.ToString() = config.Path
 
-    interface IActor<'a> with
+    interface IActor with
         member x.Name with get() = config.Path
-        member x.Post(msg:'a, sender) = mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg}))
-        member x.Post(msg:obj, sender) =
+        member x.Post(msg, sender) =
             match msg with
             | :? ActorMessage<'a> as msg -> mailbox.Post(msg)
-            | msg -> mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = unbox msg}))        
+            | msg -> mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = unbox msg})) 
+
+    interface IActor<'a> with
+        member x.Name with get() = config.Path 
+        member x.Post(msg:'a, sender) = mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg})) 
+
+    interface IDisposable with  
+        member x.Dispose() = ()    

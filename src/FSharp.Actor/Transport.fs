@@ -32,4 +32,6 @@ type LocalTransport() =
             match msg.Target with
             | Local(actor) -> actor.Post(msg.Message, msg.Sender)
             | _ -> ()
+         member x.Dispose() =
+            actors := Trie.empty
             
