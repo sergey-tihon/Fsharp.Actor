@@ -3,7 +3,7 @@
 #if INTERACTIVE
 open FSharp.Actor
 #endif
-open FSharp.Actor.DSL
+open FSharp.Actor
 
 module Supervisor = 
     

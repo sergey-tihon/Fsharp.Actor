@@ -2,22 +2,19 @@
 #load "Trie.fs"
 #load "Types.fs"
 #load "Mailbox.fs"
-#load "Behaviour.fs"
 #load "Logger.fs"
+#load "EventStream.fs"
 #load "Transport.fs"
 #load "Actor.Operations.fs"
 #load "Actor.Impl.fs"
-#load "Actor.Dsl.fs"
 #load "Actor.fs"
-#load "EventStream.fs"
+#load "Supervisor.fs"
 
 open FSharp.Actor
-open FSharp.Actor.DSL
 
 let baselineConfig = 
     actor { 
         path "testActor"
-        supervisedBy !!"/foo/bar"
         messageHandler (fun (ctx,msg) -> 
                           let rec loop (ctx:ActorContext,msg:string) = 
                               async {
@@ -41,7 +38,9 @@ let copy =
                                   return Behaviour(loop)
                               }
                           loop (ctx,msg))
-    } |> Actor.spawn
+    }
+
+copy |> Actor.spawn
 
 resolve "testActor" |> post <| "Resolved you"
 resolve "inherited" |> post <| "Resolved inherited"

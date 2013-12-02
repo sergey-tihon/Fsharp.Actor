@@ -4,7 +4,11 @@ open System
 open System.Threading
 open System.Collections.Concurrent
 
-type Mailbox<'a>(limit) =
+#if INTERACTIVE
+open FSharp.Actor
+#endif
+
+type DefaultMailbox<'a>(limit) =
     let mutable disposed = false
     let mutable inbox = ConcurrentQueue<'a>()
     let awaitMsg = new AutoResetEvent(false)

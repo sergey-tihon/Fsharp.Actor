@@ -11,38 +11,6 @@ open FSharp.Actor
 
 module Logger = 
 
-    let Console name =
-        let write level (msg, args, exn : exn option) =
-            let currentColor = Console.ForegroundColor
-            let msg = 
-                match exn with
-                | Some(err) ->
-                    String.Format("{0} {1}-[{2}]: {3} : {4}\n{5}", 
-                                       DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss.fff"), 
-                                       name,
-                                       level,
-                                       String.Format(msg, args), err.Message, err.StackTrace)
-                | None ->
-                     String.Format("{0} {1}-[{2}]: {3}", 
-                                       DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss.fff"), 
-                                       name,
-                                       level,
-                                       String.Format(msg, args))
-            match level with
-            | "info" -> Console.ForegroundColor <- ConsoleColor.Green  
-            | "warn" -> Console.ForegroundColor <- ConsoleColor.Yellow
-            | "error" -> Console.ForegroundColor <- ConsoleColor.Red
-            | _ -> Console.ForegroundColor <- ConsoleColor.White 
-            Console.WriteLine(msg)
-            Console.ForegroundColor <- currentColor
-
-        { new ILogger with
-            member x.Debug(msg,args, exn) = write "debug" (msg,args, exn)
-            member x.Info(msg,args, exn) = write "info" (msg, args, exn)
-            member x.Warning(msg, args, exn) = write "warn" (msg, args, exn)
-            member x.Error(msg, args, exn) = write "error" (msg, args, exn) 
-        }
-
     let NLog (name:string) = 
         let configureNlog() =
             let config = new LoggingConfiguration()

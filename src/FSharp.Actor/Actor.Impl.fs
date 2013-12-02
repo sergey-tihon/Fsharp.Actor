@@ -18,6 +18,11 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
     let mutable ctx = { Current = Local(self); Logger = logger; Children = []; LastError = None; Sender = Null }
     let mutable children = []
 
+    let publishEvent event = 
+        match config.EventStream with
+        | EventStream(es) -> es.Publish(event)
+        | EventStream.Null -> ()
+
     let rec run (Behaviour(msgHandler) as behave) = 
        async {
            let! msg = mailbox.Receive(config.ReceiveTimeout)
@@ -41,7 +46,7 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
     
     and restart() = 
         async { 
-            config.EventStream.Publish(ActorEvents.ActorRestart(Local(self)))
+            publishEvent(ActorEvents.ActorRestart(Local(self)))
             if ctx.LastError.IsSome
             then logger.Debug("{0} restarted due to Error: {1}",[|self;ctx.LastError.Value.Message|], None)
             else logger.Debug("{0} restarted",[|self|], None)
@@ -50,7 +55,7 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
 
     and shutdown() = 
         async {
-            config.EventStream.Publish(ActorEvents.ActorShutdown(Local(self)))
+            publishEvent(ActorEvents.ActorShutdown(Local(self)))
             if ctx.LastError.IsSome
             then logger.Debug("{0} restarted due to Error: {1}",[|self;ctx.LastError.Value.Message|], None)
             else logger.Debug("{0} restarted",[|self|], None)
@@ -68,7 +73,7 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
             }
         async {
             ctx <- { ctx with LastError = Some err }
-            config.EventStream.Publish(ActorEvents.ActorErrored(Local(self), err))
+            publishEvent(ActorEvents.ActorErrored(Local(self), err))
             match config.Supervisor with
             | Null ->
                 return! shutdown()  
