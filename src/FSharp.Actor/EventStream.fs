@@ -7,7 +7,7 @@ open System.Collections.Generic
 open FSharp.Actor
 #endif
 
-type DefaultEventStream(name) = 
+type DefaultEventStream() = 
     let logger = Logger.create (typeof<EventStream>.FullName)
     let cts = new CancellationTokenSource()
     let counter = ref 0L

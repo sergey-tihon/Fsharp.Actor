@@ -85,6 +85,7 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
     let actorLoop behaviour = 
         async {
             CallContext.LogicalSetData("actor", self :> IActor)
+            publishEvent(ActorEvents.ActorStarted(Local(self)))
             return! run behaviour
         }
 

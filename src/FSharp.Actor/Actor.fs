@@ -39,7 +39,7 @@ module ActorConfiguration =
         [<CustomOperation("supervisedBy", MaintainsVariableSpace = true)>]
         member x.SupervisedBy(ctx:ActorDefinition<'a>, sup) = 
             { ctx with Supervisor = sup }
-        [<CustomOperation("raiseEventOn", MaintainsVariableSpace = true)>]
+        [<CustomOperation("raiseEventsOn", MaintainsVariableSpace = true)>]
         member x.RaiseEventsOn(ctx:ActorDefinition<'a>, es) = 
             { ctx with EventStream = EventStream(es)}
 

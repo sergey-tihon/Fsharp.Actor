@@ -55,13 +55,11 @@
     <Compile Include="Types.fs" />
     <Compile Include="Async.fs" />
     <Compile Include="Mailbox.fs" />
-    <Compile Include="Behaviour.fs" />
     <Compile Include="Logger.fs" />
+    <Compile Include="EventStream.fs" />
     <Compile Include="Transport.fs" />
     <Compile Include="Actor.Operations.fs" />
     <Compile Include="Actor.Impl.fs" />
-    <Compile Include="Actor.Dsl.fs" />
-    <Compile Include="EventStream.fs" />
     <Compile Include="Actor.fs" />
     <Compile Include="Supervisor.fs" />
     <None Include="packages.config" />
