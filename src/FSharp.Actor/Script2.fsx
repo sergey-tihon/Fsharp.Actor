@@ -53,7 +53,7 @@ let errorActor =
                                   return Behaviour(loop (count + 1))
                               }
                           loop 0 (ctx,msg))
-    } |> Actor.create |> Actor.ref
+    } |> Actor.create |> Actor.register |> Actor.ref 
 
 #time
 for i in 1..1000 do
@@ -63,3 +63,6 @@ for i in 1..1000 do
 
 errorActor |> post <| "foo"
 
+resolve "fracture://remote/actor"
+
+resolve "local://exampleActor"

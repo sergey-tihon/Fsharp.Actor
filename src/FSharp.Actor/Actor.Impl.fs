@@ -105,17 +105,17 @@ type Actor<'a>(config:ActorDefinition<'a>) as self =
 
     do Async.Start(actorLoop config.Behaviour)
 
-    override x.ToString() = config.Path
+    override x.ToString() = (x :> IActor).Name
 
     interface IActor with
-        member x.Name with get() = config.Path
+        member x.Name with get() = config.Path.ToLower()
         member x.Post(msg, sender) =
                match msg with
                | :? ActorMessage as msg -> mailbox.Post(msg)
                | msg -> mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg}))
 
     interface IActor<'a> with
-        member x.Name with get() = config.Path 
+        member x.Name with get() = config.Path.ToLower()
         member x.Post(msg:'a, sender) =
              mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg})) 
 

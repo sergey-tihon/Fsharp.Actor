@@ -40,10 +40,15 @@ module Operations =
             then
                 match Map.tryFind uri.Scheme !transports with
                 | Some(t) -> Remote(t, uri.GetLeftPart(UriPartial.Scheme))
-                | None -> Null
+                | None -> raise(TransportNotRegistered uri.Scheme)
             else
-                localTransport.Resolve target
-        | _ -> failwithf "Not a valid ActorPath %s" target
+                let path = 
+                    if uri.IsAbsoluteUri
+                    then uri.Host + "/" + uri.PathAndQuery
+                    else target
+                printfn "Trying to resolve %A from %A" (path.TrimEnd([|'/'|])) target
+                localTransport.Resolve (path.TrimEnd([|'/'|]))
+        | _ -> raise(InvalidActorPath target)
 
     let post (target:ActorRef) (msg:'a) = 
         let sender = getSenderRef()
