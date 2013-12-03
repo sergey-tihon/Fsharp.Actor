@@ -53,6 +53,7 @@
   <ItemGroup>
     <Compile Include="Trie.fs" />
     <Compile Include="Types.fs" />
+    <Compile Include="Exceptions.fs" />
     <Compile Include="Async.fs" />
     <Compile Include="Mailbox.fs" />
     <Compile Include="Logger.fs" />

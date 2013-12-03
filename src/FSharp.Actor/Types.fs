@@ -14,6 +14,7 @@ type ActorPath = string
 type IMailbox<'a> = 
     inherit IDisposable
     abstract Post : 'a -> unit
+    abstract Scan : ('a -> Async<'b> option) -> Async<'b>
     abstract Receive : int -> Async<'a>
 
 type ILogger = 
@@ -93,13 +94,14 @@ type IActor<'a> =
 type Behaviour<'a> = 
     | Behaviour of ('a-> Async<Behaviour<'a>>)
 
-type ActorMessage<'a> =
+type ActorMessage =
     | Shutdown 
     | Restart
+    | Continue
     | SetSupervisor of ActorRef
     | Link of ActorRef
     | Unlink of ActorRef
-    | Msg of Message<'a>
+    | Msg of Message<obj>
 
 type SupervisorMessage = 
     | Errored of exn
@@ -115,17 +117,22 @@ type ActorEvents =
 type MessageEvents = 
     | Undeliverable of obj * Type * Type * ActorRef option 
 
+type ActorStatus = 
+    | Running 
+    | Errored of exn
+    | Stopped
+
 type ActorContext = {
     Logger : ILogger
     Current : ActorRef
     Sender : ActorRef
-    LastError : exn option
+    Status : ActorStatus
     Children : ActorRef list
 }
 
 type ActorDefinition<'a> = {
     Path : ActorPath
-    Mailbox : IMailbox<ActorMessage<'a>>
+    Mailbox : IMailbox<ActorMessage>
     EventStream : EventStream
     ReceiveTimeout : int
     Supervisor : ActorRef
@@ -134,6 +141,7 @@ type ActorDefinition<'a> = {
 
 type SupervisorResponse = 
     | Stop
+    | Restart
     | Continue 
 
 type ErrorContext = {

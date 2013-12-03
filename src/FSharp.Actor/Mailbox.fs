@@ -8,28 +8,87 @@ open System.Collections.Concurrent
 open FSharp.Actor
 #endif
 
-type DefaultMailbox<'a>(limit) =
+type DefaultMailbox<'a>() =
     let mutable disposed = false
-    let mutable inbox = ConcurrentQueue<'a>()
+    let mutable inbox : ResizeArray<_> = new ResizeArray<_>()
+    let mutable arrivals = new ConcurrentQueue<_>()
     let awaitMsg = new AutoResetEvent(false)
+    
+    let rec scanInbox(f,n) =
+        match inbox with
+        | null -> None
+        | inbox ->
+            if n >= inbox.Count
+            then None
+            else
+                let msg = inbox.[n]
+                match f msg with
+                | None -> scanInbox (f,n+1)
+                | res -> inbox.RemoveAt(n); res
 
-    let rec await timeout = async {
-       match inbox.TryDequeue() with
-       | true, msg ->
-          return msg
-       | false, _ ->
-          let! recd = Async.AwaitWaitHandle(awaitMsg, timeout)
-          if recd then return! await timeout
-          else return raise(TimeoutException("Receive timed out"))
-    }
+    let rec scanArrivals(f) =
+        if arrivals.Count = 0 then None
+        else 
+             match arrivals.TryDequeue() with
+             | true, msg -> 
+                 match f msg with
+                 | None -> 
+                     inbox.Add(msg); 
+                     scanArrivals(f)
+                 | res -> res
+             | false, _ -> None
+
+    let receiveFromArrivals() =
+        if arrivals.Count = 0 
+        then None
+        else
+            match arrivals.TryDequeue() with
+            | true, msg -> Some msg
+            | false, _ -> None
+
+    let receiveFromInbox() =
+        match inbox with
+        | null -> None
+        | inbox ->
+            if inbox.Count = 0
+            then None
+            else
+                let x = inbox.[0]
+                inbox.RemoveAt(0);
+                Some(x)
 
     interface IMailbox<'a> with
-        member this.Receive(timeout) = await timeout
+        member this.Receive(timeout) =
+              let rec await() =
+                  async { match receiveFromArrivals() with
+                          | None -> 
+                              let! gotArrival = Async.AwaitWaitHandle(awaitMsg, timeout)
+                              if gotArrival 
+                              then return! await()
+                              else return raise(TimeoutException("Failed to receive message"))
+                          | Some res -> return res }
+              async { match receiveFromInbox() with
+                      | None -> return! await() 
+                      | Some res -> return res }
+        
+        member this.Scan(f) = 
+              let rec await() =
+                  async { match scanArrivals(f) with
+                          | None -> 
+                              let! gotArrival = Async.AwaitWaitHandle(awaitMsg, -1)
+                              if gotArrival 
+                              then return! await()
+                              else return raise(TimeoutException("Failed to receive message"))
+                          | Some res -> return! res }
+              async { match scanInbox(f, 0) with
+                      | None -> return! await() 
+                      | Some res -> return! res }
+
         member this.Post(msg) = 
             if disposed 
             then ()
             else
-                inbox.Enqueue(msg)
+                arrivals.Enqueue(msg)
                 awaitMsg.Set() |> ignore
 
         member this.Dispose() = 

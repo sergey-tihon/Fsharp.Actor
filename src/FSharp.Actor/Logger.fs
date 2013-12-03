@@ -14,22 +14,22 @@ module Logger =
     let NLog (name:string) = 
         let configureNlog() =
             let config = new LoggingConfiguration()
-            let layout = Layouts.Layout.op_Implicit @"${date:format=HH\:MM\:ss} ${logger} ${message}"
+            let layout = Layouts.Layout.op_Implicit @"${date:format=HH\:MM\:ss} ${logger}-${level} ${message}"
             let consoleTarget = new ColoredConsoleTarget();
             consoleTarget.Layout <- layout
             config.AddTarget("console", consoleTarget);
 
-#if INTERACTIVE
-#else
+//#if INTERACTIVE
+//#else
             let fileTarget = new FileTarget();
             config.AddTarget("file", fileTarget);
 
-            fileTarget.FileName <- Layouts.Layout.op_Implicit ("${basedir}/Logs/" + name + ".log")
+            fileTarget.FileName <- Layouts.Layout.op_Implicit ("C:/Temp/Logs/" + name + ".log")
             fileTarget.Layout <- layout;
 
             let rule2 = new LoggingRule("*", LogLevel.Debug, fileTarget);
             config.LoggingRules.Add(rule2);
-#endif
+//#endif
             let rule1 = new LoggingRule("*", LogLevel.Debug, consoleTarget);
             config.LoggingRules.Add(rule1);
 

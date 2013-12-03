@@ -17,7 +17,7 @@ module ActorConfiguration =
     type ActorDefinitionBuilder internal() = 
         member x.Yield(()) = { 
             Path = Guid.NewGuid().ToString(); 
-            Mailbox = new DefaultMailbox<ActorMessage<'a>>(128); 
+            Mailbox = new DefaultMailbox<ActorMessage>(); 
             EventStream = EventStream.Null
             ReceiveTimeout = Timeout.Infinite;
             Supervisor = Null; 
@@ -48,7 +48,9 @@ module ActorConfiguration =
 module Actor = 
 
     let create config = 
-        (new Actor<_>(config) :> IActor<_>)
+        (new Actor<_>(config))
+
+    let ref actor = Local actor
 
     let unType<'a> (actor:IActor<'a>) = 
         (actor :?> Actor<'a>) :> IActor
@@ -56,6 +58,7 @@ module Actor =
     let reType<'a> (actor:IActor) = 
         (actor :?> Actor<'a>) :> IActor<'a>
 
+    let register ref = ref |> unType |> register
+
     let spawn config = 
-        printfn "spawning %A" config.Path
-        config |> (create >> unType >> register)
+        config |> (create >> register )

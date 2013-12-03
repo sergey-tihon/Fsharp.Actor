@@ -1,6 +1,7 @@
 ﻿#r @"..\..\packages\NLog.2.0.1.2\lib\net45\NLog.dll"
 #load "Trie.fs"
 #load "Types.fs"
+#load "Exceptions.fs"
 #load "Mailbox.fs"
 #load "Logger.fs"
 #load "EventStream.fs"
@@ -10,6 +11,7 @@
 #load "Actor.fs"
 #load "Supervisor.fs"
 
+open System
 open FSharp.Actor
 
 let logger = Logger.create "console"
@@ -24,37 +26,40 @@ es.Subscribe(function
              | ActorRemovedChild(parent, ref) -> logger.Debug(sprintf "UnLinked Actors {1} -> {0}",[|parent;ref|], None)
              )
 
+let sup = 
+    Supervisor.create (actor {
+            path "error/supervisor"
+        }) (fun err -> async { 
+                match err.Error with
+                | :? InvalidOperationException -> return SupervisorResponse.Restart
+                | :? ArgumentException -> return SupervisorResponse.Continue
+                | _ -> return SupervisorResponse.Stop
+        })
+    |> Actor.register |> Actor.ref
 
-let baselineConfig = 
+let errorActor = 
     actor { 
-        path "testActor"
+        path "exampleActor"
         raiseEventsOn es
-        messageHandler (fun (ctx,msg) -> 
-                          let rec loop (ctx:ActorContext,msg:string) = 
-                              async {
-                                  printfn "%A Recieved %A from %A" ctx.Current msg ctx.Sender
-                                  !!"inherited" <-- "Thanks"
-                                  return Behaviour(loop)
-                              }
-                          loop (ctx,msg))
-    } 
-
-let orig =  baselineConfig |> Actor.spawn
-
-let copy = 
-    actor { 
-        inherits baselineConfig
-        path "inherited"
+        supervisedBy sup
         messageHandler (fun (ctx, msg) ->
-                          let rec loop (ctx:ActorContext,msg:string) = 
+                          let rec loop count (ctx:ActorContext,msg:string) = 
                               async {
-                                  printfn "%A Recieved %A from %A" ctx.Current msg ctx.Sender
-                                  return Behaviour(loop)
+                                  match msg with
+                                  | "OK" -> ctx.Logger.Debug("Received {0} - {1}", [|msg; count|], None)
+                                  | "Continue" -> invalidArg "foo" "foo"
+                                  | "Restart" -> invalidOp "op" "op"
+                                  | _ -> failwithf "Boo"
+                                  return Behaviour(loop (count + 1))
                               }
-                          loop (ctx,msg))
-    }
+                          loop 0 (ctx,msg))
+    } |> Actor.create |> Actor.ref
 
-copy |> Actor.spawn
+#time
+for i in 1..1000 do
+    errorActor |> post <| "OK"
+    errorActor |> post <| "Continue"
+    errorActor |> post <| "Restart"
 
-resolve "testActor" |> post <| "Resolved you"
-resolve "inherited" |> post <| "Resolved inherited"
+errorActor |> post <| "foo"
+
