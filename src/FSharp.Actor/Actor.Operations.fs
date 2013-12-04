@@ -42,7 +42,11 @@ module Operations =
                 | Some(t) -> Remote(t, uri.GetLeftPart(UriPartial.Scheme))
                 | None -> Null
             else
-                localTransport.Resolve target
+                let path = 
+                    if uri.IsAbsoluteUri
+                    then uri.Host + "/" + uri.PathAndQuery
+                    else target
+                localTransport.Resolve (path.TrimEnd([|'/'|]))
         | _ -> failwithf "Not a valid ActorPath %s" target
 
     let post (target:ActorRef) (msg:'a) = 
