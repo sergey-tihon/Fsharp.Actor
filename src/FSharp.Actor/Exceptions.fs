@@ -14,6 +14,12 @@ type SupervisorResponseException(supervisor:ActorRef, actor:ActorRef, actualErro
 
 type ActorActionFailedException(action:string, status:ActorStatus, actor:ActorRef, innerException) = 
     inherit Exception(sprintf "Unable to complete action %s on actor %A, status: %A" action actor status, innerException)
+
+type TransportNotRegistered(scheme:string) = 
+    inherit Exception(sprintf "No transport registered with scheme %s" scheme)
+
+type InvalidActorPath(path:ActorPath) = 
+    inherit Exception(sprintf "Invalid actor path %s" path)
     
 
 
