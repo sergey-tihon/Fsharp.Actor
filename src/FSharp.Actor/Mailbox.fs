@@ -71,11 +71,11 @@ type DefaultMailbox<'a>() =
                       | None -> return! await() 
                       | Some res -> return res }
         
-        member this.Scan(f) = 
+        member this.Scan(timeout, f) = 
               let rec await() =
                   async { match scanArrivals(f) with
                           | None -> 
-                              let! gotArrival = Async.AwaitWaitHandle(awaitMsg, -1)
+                              let! gotArrival = Async.AwaitWaitHandle(awaitMsg, timeout)
                               if gotArrival 
                               then return! await()
                               else return raise(TimeoutException("Failed to receive message"))

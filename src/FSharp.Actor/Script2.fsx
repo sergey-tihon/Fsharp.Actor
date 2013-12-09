@@ -31,9 +31,9 @@ let sup =
             path "error/supervisor"
         }) (fun err -> async { 
                 match err.Error with
-                | :? InvalidOperationException -> return SupervisorResponse.Restart
-                | :? ArgumentException -> return SupervisorResponse.Continue
-                | _ -> return SupervisorResponse.Stop
+                | :? InvalidOperationException -> return Restart
+                | :? ArgumentException -> return Shutdown
+                | _ -> return Shutdown
         })
     |> Actor.register |> Actor.ref
 
@@ -42,26 +42,36 @@ let errorActor =
         path "exampleActor"
         raiseEventsOn es
         supervisedBy sup
-        messageHandler (fun (ctx, msg) ->
-                          let rec loop count (ctx:ActorContext,msg:string) = 
+        messageHandler (fun (ctx:ActorContext<string>) ->
+                          let rec loop count = 
                               async {
-                                  match msg with
+                                  let! msg = ctx.Receive()
+                                  match msg.Message with
                                   | "OK" -> ctx.Logger.Debug("Received {0} - {1}", [|msg; count|], None)
                                   | "Continue" -> invalidArg "foo" "foo"
                                   | "Restart" -> invalidOp "op" "op"
                                   | _ -> failwithf "Boo"
-                                  return Behaviour(loop (count + 1))
+                                  return! loop (count + 1)
                               }
-                          loop 0 (ctx,msg))
+                          loop 0)
     } |> Actor.create |> Actor.register |> Actor.ref 
 
-#time
-for i in 1..1000 do
-    errorActor |> post <| "OK"
-    errorActor |> post <| "Continue"
-    errorActor |> post <| "Restart"
+let publisher = 
+    async {
+        while true do
+            errorActor |> post <| "OK"
+            Threading.Thread.Sleep(1000)
+    }
 
-errorActor |> post <| "foo"
+Async.Start(publisher)
+
+errorActor |> post <| Shutdown
+errorActor |> post <| SystemMessage.Restart
+
+(errorActor :> IDisposable).Dispose()
+
+errorActor |> post <| "Restart"
+errorActor |> post <| "Fail"
 
 resolve "fracture://remote/actor"
 

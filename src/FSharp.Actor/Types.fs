@@ -14,7 +14,7 @@ type ActorPath = string
 type IMailbox<'a> = 
     inherit IDisposable
     abstract Post : 'a -> unit
-    abstract Scan : ('a -> Async<'b> option) -> Async<'b>
+    abstract Scan : int * ('a -> Async<'b> option) -> Async<'b>
     abstract Receive : int -> Async<'a>
 
 type ILogger = 
@@ -69,6 +69,12 @@ type ActorRef =
            | Remote(t, path) -> t.Scheme + "://" + path
            | Local(actor) -> "local://" + actor.Name
            | Null -> String.Empty
+    override x.ToString() = x.Path
+    interface IDisposable with
+        member x.Dispose() =
+            match x with
+            | Local(actor) -> actor.Dispose()
+            | _ -> ()
 
 and Message<'a> = {
     Sender : ActorRef
@@ -91,18 +97,6 @@ type IActor<'a> =
     abstract Name : ActorPath with get
     abstract Post : 'a * ActorRef -> unit
 
-type Behaviour<'a> = 
-    | Behaviour of ('a-> Async<Behaviour<'a>>)
-
-type ActorMessage =
-    | Shutdown 
-    | Restart
-    | Continue
-    | SetSupervisor of ActorRef
-    | Link of ActorRef
-    | Unlink of ActorRef
-    | Msg of Message<obj>
-
 type SupervisorMessage = 
     | Errored of exn
 
@@ -122,27 +116,30 @@ type ActorStatus =
     | Errored of exn
     | Stopped
 
-type ActorContext = {
+type SystemMessage =
+    | Shutdown
+    | Restart
+    | Link of ActorRef
+    | Unlink of ActorRef
+    | SetSupervisor of ActorRef
+
+type ActorContext<'a> = {
     Logger : ILogger
-    Current : ActorRef
-    Sender : ActorRef
-    Status : ActorStatus
     Children : ActorRef list
+    Mailbox : IMailbox<Message<'a>>
 }
+with 
+    member x.Receive(?timeout) = 
+        async { return! x.Mailbox.Receive(defaultArg timeout Timeout.Infinite) }
+    member x.Scan(f, ?timeout) = 
+        async { return! x.Mailbox.Scan(defaultArg timeout Timeout.Infinite, f) }
 
 type ActorDefinition<'a> = {
     Path : ActorPath
-    Mailbox : IMailbox<ActorMessage>
     EventStream : EventStream
-    ReceiveTimeout : int
     Supervisor : ActorRef
-    Behaviour : Behaviour<ActorContext * 'a>
+    Behaviour : (ActorContext<'a> -> Async<unit>)
 }
-
-type SupervisorResponse = 
-    | Stop
-    | Restart
-    | Continue 
 
 type ErrorContext = {
     Error : exn

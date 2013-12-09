@@ -10,114 +10,117 @@ open FSharp.Actor
 #if INTERACTIVE
 open FSharp.Actor
 #endif
-
-type Actor<'a>(config:ActorDefinition<'a>) as self = 
-    let mailbox = config.Mailbox
-    let systemMailbox = new DefaultMailbox<_>()
-    let logger = Logger.create config.Path
-    let mutable config = config
-    let mutable ctx = { Current = Local(self); Logger = logger; Children = []; Status = Running; Sender = Null }
+                
+type Actor<'a>(defn:ActorDefinition<'a>) as self = 
+    let mailbox = new DefaultMailbox<Message<'a>>() :> IMailbox<_>
+    let logger = Logger.create defn.Path
+    let systemMailbox = new DefaultMailbox<SystemMessage>() :> IMailbox<_>
+    let mutable cts = new CancellationTokenSource()
+    let mutable messageHandlerCancel = new CancellationTokenSource()
+    let mutable defn = defn
+    let mutable ctx = { Mailbox = mailbox; Logger = logger; Children = []; }
+    let mutable status = ActorStatus.Stopped
 
     let publishEvent event = 
-        match config.EventStream with
+        match defn.EventStream with
         | EventStream(es) -> es.Publish(event)
         | EventStream.Null -> ()
 
-    let setStatus status = 
-        ctx <- { ctx with Status = status }
+    let setStatus stats = 
+        status <- stats
 
-    let rec run (Behaviour(msgHandler) as behave) = 
-       setStatus(ActorStatus.Running)
-       async {
-           let! msg = mailbox.Receive(config.ReceiveTimeout)
-           match msg with
-           | ActorMessage.Shutdown -> return! shutdown()
-           | ActorMessage.Restart -> return! restart()
-           | ActorMessage.Continue -> return! run behave
-           | SetSupervisor(ref) ->
-               config <- { config with Supervisor =  ref }
-               return! run behave
-           | Link(ref) -> 
-               ctx <- { ctx with Children = (ref :: ctx.Children) }
-           | Unlink(ref) -> 
-               ctx <- { ctx with Children = (List.filter ((<>) ref) ctx.Children) }
-           | Msg(msg) -> 
-               let! result = msgHandler ({ ctx with Sender = msg.Sender}, unbox<'a> msg.Message) |> Async.Catch
-               match result with
-               | Choice1Of2(next) ->  return! run next
-               | Choice2Of2(err) -> 
-                   return! handleError behave err 
-       }
-    
-    and restart() = 
-        async { 
-            publishEvent(ActorEvents.ActorRestart(Local(self)))
-            match ctx.Status with
-            | Errored(err) -> logger.Debug("{0} restarted due to Error: {1}",[|self;err|], None)
-            | _ -> logger.Debug("{0} restarted",[|self|], None)
-            return! run config.Behaviour
-        }
-
-    and shutdown() = 
+    let shutdown() = 
         async {
+            messageHandlerCancel.Cancel()
             publishEvent(ActorEvents.ActorShutdown(Local(self)))
-            match ctx.Status with
+            match status with
             | Errored(err) -> logger.Debug("{0} shutdown due to Error: {1}",[|self;err|], None)
-            | _ -> logger.Debug("{0} restarted",[|self|], None)
+            | _ -> logger.Debug("{0} shutdown",[|self|], None)
             setStatus ActorStatus.Stopped
             return ()
         }
 
-    and handleError msgHandler (err:exn) =
-        let rec waitSupervisorResponse() = 
-            async {
-                try        
-                    do! mailbox.Scan(fun msg -> 
-                                         match msg with
-                                         | ActorMessage.Shutdown -> Some(shutdown())
-                                         | ActorMessage.Restart -> Some(restart())
-                                         | ActorMessage.Continue -> Some(run msgHandler)
-                                         | _ -> None
-                                     )
-                with e -> 
-                    let err = SupervisorResponseException(config.Supervisor, Local(self), e) :> exn
-                    do publishEvent(ActorEvents.ActorErrored(Local(self), err))
-                    setStatus(ActorStatus.Errored(err))
-                    return! shutdown()
-            }
+    let handleError (err:exn) =
         async {
             setStatus(ActorStatus.Errored(err))
             publishEvent(ActorEvents.ActorErrored(Local(self), err))
-            match config.Supervisor with
-            | Null ->
-                return! shutdown()  
+            match defn.Supervisor with
+            | Null -> return! shutdown()  
             | ref -> 
                 ref |> post <| SupervisorMessage.Errored(err)
-                return! waitSupervisorResponse()  
+                return ()  
         }
-    
-    let actorLoop behaviour = 
+
+    let rec messageHandler() =
+        setStatus ActorStatus.Running
         async {
-            CallContext.LogicalSetData("actor", self :> IActor)
-            publishEvent(ActorEvents.ActorStarted(Local(self)))
-            return! run behaviour
+            try
+                do! defn.Behaviour ctx
+            with e -> 
+                do! handleError e
         }
 
-    do Async.Start(actorLoop config.Behaviour)
+    let rec restart() =
+        async { 
+            publishEvent(ActorEvents.ActorRestart(Local(self)))
+            do messageHandlerCancel.Cancel()
+            match status with
+            | Errored(err) -> logger.Debug("{0} restarted due to Error: {1}",[|self;err|], None)
+            | _ -> logger.Debug("{0} restarted",[|self|], None)
+            do start()
+            return! systemMessageHandler()
+        }
 
-    override x.ToString() = (x :> IActor).Name
+    and systemMessageHandler() = 
+        async {
+            let! sysMsg = systemMailbox.Receive(Timeout.Infinite)
+            match sysMsg with
+            | Shutdown -> return! shutdown()
+            | Restart -> return! restart()
+            | Link(ref) -> 
+                ctx <- { ctx with Children = (ref :: ctx.Children) }
+                return! systemMessageHandler()
+            | Unlink(ref) -> 
+                ctx <- { ctx with Children = (List.filter ((<>) ref) ctx.Children) }
+                return! systemMessageHandler()
+            | SetSupervisor(ref) ->
+               defn <- { defn with Supervisor =  ref }
+               return! systemMessageHandler()
+        }
+
+    and start() = 
+        if messageHandlerCancel <> null
+        then
+            messageHandlerCancel.Dispose()
+            messageHandlerCancel <- null
+        messageHandlerCancel <- new CancellationTokenSource()
+        Async.Start(async {
+                        CallContext.LogicalSetData("actor", self :> IActor)
+                        publishEvent(ActorEvents.ActorStarted(Local(self)))
+                        do! messageHandler()
+                    }, messageHandlerCancel.Token)
+
+    do 
+        Async.Start(systemMessageHandler(), cts.Token)
+        start()
+   
+    override x.ToString() = defn.Path
 
     interface IActor with
-        member x.Name with get() = config.Path.ToLower()
+        member x.Name with get() = defn.Path.ToLower()
         member x.Post(msg, sender) =
                match msg with
-               | :? ActorMessage as msg -> mailbox.Post(msg)
-               | msg -> mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg}))
+               | :? SystemMessage as msg -> systemMailbox.Post(msg)
+               | msg -> mailbox.Post({Target = Local(x); Sender = sender; Message = unbox<'a> msg})
 
     interface IActor<'a> with
-        member x.Name with get() = config.Path.ToLower()
+        member x.Name with get() = defn.Path.ToLower()
         member x.Post(msg:'a, sender) =
-             mailbox.Post(Msg({Target = Local(x); Sender = sender; Message = msg})) 
+             mailbox.Post({Target = Local(x); Sender = sender; Message = msg}) 
 
     interface IDisposable with  
-        member x.Dispose() = ()    
+        member x.Dispose() =
+            messageHandlerCancel.Dispose()
+            cts.Dispose()
+           
+            

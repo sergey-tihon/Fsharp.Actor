@@ -9,33 +9,25 @@ open FSharp.Actor
 [<AutoOpen>]
 module ActorConfiguration = 
     
-    let rec internal emptyBehaviour = 
-        Behaviour (fun msg ->
-             let rec b msg = async { return Behaviour(b) }
-             b msg)
+    let internal emptyBehaviour ctx = 
+        let rec loop() =
+             async { return! loop() }
+        loop()
 
     type ActorDefinitionBuilder internal() = 
         member x.Yield(()) = { 
             Path = Guid.NewGuid().ToString(); 
-            Mailbox = new DefaultMailbox<ActorMessage>(); 
             EventStream = EventStream.Null
-            ReceiveTimeout = Timeout.Infinite;
             Supervisor = Null; 
             Behaviour = emptyBehaviour  }
         [<CustomOperation("inherits", MaintainsVariableSpace = true)>]
-        member x.Inherits(ctx:ActorDefinition<'a>, b:ActorDefinition<_>) = { b with Mailbox = ctx.Mailbox }
+        member x.Inherits(ctx:ActorDefinition<'a>, b:ActorDefinition<_>) = b
         [<CustomOperation("path", MaintainsVariableSpace = true)>]
         member x.Path(ctx:ActorDefinition<'a>, name) = 
             {ctx with Path = name }
-        [<CustomOperation("receiveFrom", MaintainsVariableSpace = true)>]
-        member x.ReceiveFrom(ctx:ActorDefinition<'a>, mailbox) = 
-            {ctx with Mailbox = mailbox }
-        [<CustomOperation("timeoutAfter", MaintainsVariableSpace = true)>]
-        member x.TimeoutAfter(ctx:ActorDefinition<'a>, timeout) = 
-            {ctx with ReceiveTimeout = timeout }
         [<CustomOperation("messageHandler", MaintainsVariableSpace = true)>]
         member x.MsgHandler(ctx:ActorDefinition<'a>, behaviour) = 
-            { ctx with Behaviour = Behaviour behaviour }
+            { ctx with Behaviour = behaviour }
         [<CustomOperation("supervisedBy", MaintainsVariableSpace = true)>]
         member x.SupervisedBy(ctx:ActorDefinition<'a>, sup) = 
             { ctx with Supervisor = sup }
