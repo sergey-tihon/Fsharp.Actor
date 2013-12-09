@@ -20,10 +20,10 @@ let es = new DefaultEventStream() :> IEventStream
 es.Subscribe(function
              | ActorStarted(ref) -> logger.Debug("Actor Started {0}",[|ref|], None)
              | ActorShutdown(ref) -> logger.Debug("Actor Shutdown {0}",[|ref|], None)
-             | ActorRestart(ref) -> logger.Debug(sprintf "Actor Restart {0}",[|ref|], None)
-             | ActorErrored(ref,err) -> logger.Error(sprintf "Actor Errored {0}", [|ref|], Some err)
-             | ActorAddedChild(parent, ref) -> logger.Debug(sprintf "Linked Actors {1} -> {0}",[|parent; ref|], None)
-             | ActorRemovedChild(parent, ref) -> logger.Debug(sprintf "UnLinked Actors {1} -> {0}",[|parent;ref|], None)
+             | ActorRestart(ref) -> logger.Debug("Actor Restart {0}",[|ref|], None)
+             | ActorErrored(ref,err) -> logger.Error("Actor Errored {0}", [|ref|], Some err)
+             | ActorAddedChild(parent, ref) -> logger.Debug("Linked Actors {1} -> {0}",[|parent; ref|], None)
+             | ActorRemovedChild(parent, ref) -> logger.Debug("UnLinked Actors {1} -> {0}",[|parent;ref|], None)
              )
 
 let sup = 
@@ -66,7 +66,7 @@ let publisher =
 Async.Start(publisher)
 
 errorActor |> post <| Shutdown
-errorActor |> post <| SystemMessage.Restart
+errorActor |> post <| Restart
 
 (errorActor :> IDisposable).Dispose()
 

@@ -56,6 +56,9 @@
     <Reference Include="Fracture">
       <HintPath>..\..\..\fsharp.actor\lib\Fracture.dll</HintPath>
     </Reference>
+    <Reference Include="FsCoreSerializer">
+      <HintPath>..\..\packages\FsCoreSerializer.0.5.1\lib\net45\FsCoreSerializer.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>

@@ -1,22 +1,26 @@
 ﻿namespace FSharp.Actor.Fracture
 
 open System
+open System.IO
 open FSharp.Actor
+open FsCoreSerializer
 open System.Threading
 open System.Collections.Concurrent
 
 open Fracture
 open Fracture.Common
 
-type FractureTransport(listenPort:int,?log:ILogger) = 
-    let log = defaultArg log (Logger.Console ("fracture:" + (string listenPort)))
+type FractureTransport(listenPort:int,?log:ILogger, ?serializer:ISerializer) = 
+    let serializer = defaultArg serializer (new FsCoreSerializer.BinaryFormatterSerializer() :> ISerializer)
+    let log = defaultArg log (Logger.create ("fracture:" + (string listenPort)))
     let scheme = "fracture"
     let received = new Event<_>()
         
     let onReceived(msg:byte[], server:TcpServer, socketDescriptor:SocketDescriptor) =
-        match Remoting.deserialize msg with
-        | Some(rm) -> received.Trigger(rm)
-        | None -> log.Warning("Unable to process remote mesage", [||], None) //TODO: Log properly
+        use ms = new MemoryStream(msg)
+        match serializer.Deserialize msg with
+        | null -> log.Warning("Unable to process remote mesage", [||], None) //TODO: Log properly
+        | rm -> received.Trigger(rm)
 
     do
         try
@@ -72,13 +76,9 @@ type FractureTransport(listenPort:int,?log:ILogger) =
                 return Choice2Of2 e
         }
 
-    interface ITransport with
+    interface IActorTransport with
         member val Scheme = scheme with get
-
-        member x.CreateRemoteActor(remoteAddress) = 
-            RemoteActor.spawn remoteAddress x Actor.Options.Default
-
-        member x.Send(remoteAddress, msg, sender) =
+        member x.Post(msg:Message<obj>) =
              async {
                 let! client = getOrAdd tryCreateClient remoteAddress clients
                 match client with

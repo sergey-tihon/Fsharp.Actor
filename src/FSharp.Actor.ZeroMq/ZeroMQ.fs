@@ -2,72 +2,82 @@
 
 open FSharp.Actor
 open System.Threading
+open System
+open ZeroMQ
+open FsCoreSerializer
+open System.Text
 
-module ZeroMQ =
+type ZeroMqMessage = {
+    Target : string
+    Sender : string
+    Message : obj
+}
+with
+    static member ofMessage(publisherUri:Uri, msg:Message<obj>) = 
+        let transformActorRef = function
+            | Local(actor) -> (Uri(publisherUri, actor.Name).ToString())
+            | Remote(transport, path) -> (Uri(publisherUri, path).ToString())
+            | Null -> ""
 
-    open System
-    open ZeroMQ
-    open FsCoreSerializer
-    open FSharp.Actor
-    open System.Text
-
-    let createContext() = 
-        ZeroMQ.ZmqContext.Create()
-
-    let publisher (endpoint:Uri) (serialiser:ISerializer) (event:IEvent<PathDescriptor * MessageEnvelope>) =
-        async {
-            try
-                use ctx = createContext()
-                use socket = ctx.CreateSocket(SocketType.PUB)
-                socket.Bind(endpoint.AbsoluteUri)
-                while true do
-                    let! (descriptor, message) = event |> Async.AwaitEvent
-                    let message = 
-                        { message with
-                            Sender = ActorPath.Update(message.Sender, transport = descriptor)
-                        }
-                    let msg = ZmqMessage()
-                    let payload = Frame(serialiser.Serialize(message))
-                    socket.SendMessage(ZmqMessage([|payload|])) |> ignore
-            with e -> 
-                printfn "Pub error: %A" e               
+        {
+            Sender = transformActorRef msg.Sender
+            Target = transformActorRef msg.Target
+            Message = msg.Message
         }
 
-    let subscribe (endpoint:Uri) (serialiser:ISerializer)  onReceived  = 
+    member x.ToMessage() : Message<obj> = 
+        let target = 
+            (Uri(x.Target).GetLeftPart(UriPartial.Authority))
+        {
+            Sender = (resolve x.Sender)
+            Target = (resolve target)
+            Message = x.Message
+        }
+
+type ZeroMqTransport(pubUri:Uri, subUri:Uri, ?logger:ILogger, ?serializer:ISerializer) = 
+    let logger = defaultArg logger (Logger.create ("zeromq"))
+    let serializer = defaultArg serializer (new FsCoreSerializer.BinaryFormatterSerializer() :> ISerializer)
+    let cts = new CancellationTokenSource()
+    let zmqContext = 
+        ZeroMQ.ZmqContext.Create()
+
+    let bind uri sockType = 
+        let socket = zmqContext.CreateSocket(sockType)
+        socket.Bind(uri)
+        socket
+
+    let publisher, subscriber = (bind pubUri.AbsoluteUri SocketType.PUB, bind subUri.AbsoluteUri SocketType.SUB)
+
+    let send (toSend:Message<obj>) =
+        try
+             let msg = ZmqMessage()
+             let payload = Frame(serializer.Serialize(toSend))
+             publisher.SendMessage(ZmqMessage([|payload|])) |> ignore
+        with e -> 
+             logger.Error("An error occured sending message", [||], Some e)              
+        
+    let subscribe()  = 
         async {
             try
-                use ctx = createContext()
-                use socket = ctx.CreateSocket(SocketType.SUB)
+                use socket = subscriber
                 socket.SubscribeAll()
-                socket.Connect(endpoint.AbsoluteUri)
+                socket.Connect(subUri.AbsoluteUri)
 
                 while true do 
                     let msg = socket.ReceiveMessage()
                     let bytes = (msg.[0].Buffer) 
-                    let result = serialiser.Deserialize(bytes) :?> MessageEnvelope
-                    onReceived(result)                       
+                    let result = (serializer.Deserialize(bytes) :?> ZeroMqMessage).ToMessage()
+                    result.Target |> post <| result.Message                
             with e -> 
-                printfn "Sub erro: %A" e
+                logger.Error("An error occured sending message", [||], Some e)  
         }
+    
+    do
+        Async.Start(subscribe(), cts.Token)
 
-    let transport publishEndpoint subscribeEndpoint serialiser = 
-        let publishEndpoint, subscribeEndpoint = Uri(publishEndpoint), Uri(subscribeEndpoint)
-        let publishEvent = new Event<_>()
-        let receiveEvent = new Event<_>()
-        let cts = new CancellationTokenSource()
-        { new ITransport with
-            member x.Descriptor with get() = Transport("zeromq", Environment.MachineName, Some(subscribeEndpoint.Port))
-            member x.Get(path) = ActorRef(ActorPath.Update(path, transport = x.Descriptor), x.Post)
-            member x.TryGet(path) = ActorRef(ActorPath.Update(path, transport = x.Descriptor), x.Post) |> Some
-            member x.GetAll(path) = Seq.singleton (ActorRef(ActorPath.Update(path, transport = x.Descriptor), x.Post))
-            member x.Register(ref) = ()
-            member x.Remove(ref) = ()
-            member x.Post(msg:MessageEnvelope) = publishEvent.Trigger(x.Descriptor, msg)
-            member x.Receive with get() = receiveEvent.Publish
-            member x.Start() =
-                 Async.Start(publisher publishEndpoint serialiser publishEvent.Publish, cts.Token)
-                 Async.Start(subscribe subscribeEndpoint serialiser receiveEvent.Trigger, cts.Token)
-            member x.Dispose() = 
-                cts.Cancel()
-                
-        }
+
+    interface IActorTransport with
+        member x.Scheme with get() = "zeromq"
+        member x.Post(msg) = send msg
+        member x.Dispose() = cts.Dispose()
+            
