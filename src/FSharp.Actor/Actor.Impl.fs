@@ -22,9 +22,7 @@ type Actor<'a>(defn:ActorDefinition<'a>) as self =
     let mutable status = ActorStatus.Stopped
 
     let publishEvent event = 
-        match defn.EventStream with
-        | EventStream(es) -> es.Publish(event)
-        | EventStream.Null -> ()
+        defn.EventStream.Publish(event)
 
     let setStatus stats = 
         status <- stats

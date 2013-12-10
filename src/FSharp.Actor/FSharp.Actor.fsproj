@@ -59,6 +59,8 @@
     <Compile Include="Logger.fs" />
     <Compile Include="EventStream.fs" />
     <Compile Include="Transport.fs" />
+    <Compile Include="Actor.System.fs" />
+    <Compile Include="Actor.Definition.fs" />
     <Compile Include="Actor.Operations.fs" />
     <Compile Include="Actor.Impl.fs" />
     <Compile Include="Actor.fs" />

@@ -22,7 +22,7 @@ module Supervisor =
                     } 
                 loop()   
             )
-        } |> Actor.create
+        } |> Actor.fromDefinition
 
 
 

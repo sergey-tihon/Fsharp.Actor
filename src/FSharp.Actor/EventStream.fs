@@ -8,7 +8,7 @@ open FSharp.Actor
 #endif
 
 type DefaultEventStream() = 
-    let logger = Logger.create (typeof<EventStream>.FullName)
+    let logger = Logger.create (typeof<DefaultEventStream>.FullName)
     let cts = new CancellationTokenSource()
     let counter = ref 0L
     let mutable mailbox = new DefaultMailbox<Event>() :> IMailbox<_>

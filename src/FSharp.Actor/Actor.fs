@@ -6,41 +6,16 @@ open System.Threading
 open FSharp.Actor
 #endif
 
-[<AutoOpen>]
-module ActorConfiguration = 
-    
-    let internal emptyBehaviour ctx = 
-        let rec loop() =
-             async { return! loop() }
-        loop()
-
-    type ActorDefinitionBuilder internal() = 
-        member x.Yield(()) = { 
-            Path = Guid.NewGuid().ToString(); 
-            EventStream = EventStream.Null
-            Supervisor = Null; 
-            Behaviour = emptyBehaviour  }
-        [<CustomOperation("inherits", MaintainsVariableSpace = true)>]
-        member x.Inherits(ctx:ActorDefinition<'a>, b:ActorDefinition<_>) = b
-        [<CustomOperation("path", MaintainsVariableSpace = true)>]
-        member x.Path(ctx:ActorDefinition<'a>, name) = 
-            {ctx with Path = name }
-        [<CustomOperation("messageHandler", MaintainsVariableSpace = true)>]
-        member x.MsgHandler(ctx:ActorDefinition<'a>, behaviour) = 
-            { ctx with Behaviour = behaviour }
-        [<CustomOperation("supervisedBy", MaintainsVariableSpace = true)>]
-        member x.SupervisedBy(ctx:ActorDefinition<'a>, sup) = 
-            { ctx with Supervisor = sup }
-        [<CustomOperation("raiseEventsOn", MaintainsVariableSpace = true)>]
-        member x.RaiseEventsOn(ctx:ActorDefinition<'a>, es) = 
-            { ctx with EventStream = EventStream(es)}
-
-    let actor = new ActorDefinitionBuilder()
-
 module Actor = 
 
-    let create config = 
+    let fromDefinition config = 
         (new Actor<_>(config))
+
+    let create name handler = 
+        actor {
+            path name
+            messageHandler handler
+        } |> fromDefinition
 
     let ref actor = Local actor
 
@@ -50,7 +25,7 @@ module Actor =
     let reType<'a> (actor:IActor) = 
         (actor :?> Actor<'a>) :> IActor<'a>
 
-    let register ref = ref |> unType |> register
+    let register ref = ref |> unType |> ActorSystem.Register
 
     let spawn config = 
-        config |> (create >> register )
+        config |> (fromDefinition >> register)

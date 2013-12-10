@@ -8,13 +8,7 @@ open FSharp.Actor
 #endif
 
 [<AutoOpen>]
-module Operations = 
-    
-    let internal localTransport = new LocalTransport()
-    let private transports : Map<string, IActorTransport> ref =
-        [
-            "local", localTransport  :> IActorTransport
-        ] |> Map.ofList |> ref
+module Operations =
 
     let private getSenderRef() = 
         let sender = CallContext.LogicalGetData("actor")
@@ -23,22 +17,12 @@ module Operations =
         | :? IActor as actor -> Local(actor)
         | _ -> failwithf "Unknown sender ref %A" sender
 
-    let register (actor:IActor) = 
-        localTransport.Register(actor)
-        actor
-
-    let registerTransport (transport:IActorTransport) = 
-        transports := Map.add transport.Scheme transport !transports
-
-    let unregister (actor:IActor) = 
-        localTransport.UnRegister(actor)
-
     let resolve (target:ActorPath) =
         match Uri.TryCreate(target, UriKind.RelativeOrAbsolute) with
         | true, uri -> 
             if uri.IsAbsoluteUri && (uri.Scheme <> "local")
             then
-                match Map.tryFind uri.Scheme !transports with
+                match ActorSystem.TryResolveTransport(uri.Scheme) with
                 | Some(t) -> Remote(t, uri.GetLeftPart(UriPartial.Scheme))
                 | None -> Null
             else
@@ -46,7 +30,7 @@ module Operations =
                     if uri.IsAbsoluteUri
                     then uri.Host + "/" + uri.PathAndQuery
                     else target
-                localTransport.Resolve (path.TrimEnd([|'/'|]))
+                ActorSystem.LocalTransport.Resolve (path.TrimEnd([|'/'|]))
         | _ -> failwithf "Not a valid ActorPath %s" target
 
     let post (target:ActorRef) (msg:'a) = 

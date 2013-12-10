@@ -55,10 +55,6 @@ type IEventStream =
     abstract Unsubscribe<'a> : unit -> unit
     abstract Unsubscribe : string -> unit
 
-type EventStream = 
-    | EventStream of IEventStream
-    | Null
-
 type ActorRef = 
     | Remote of IActorTransport * ActorPath
     | Local of IActor
@@ -136,7 +132,7 @@ with
 
 type ActorDefinition<'a> = {
     Path : ActorPath
-    EventStream : EventStream
+    EventStream : IEventStream
     Supervisor : ActorRef
     Behaviour : (ActorContext<'a> -> Async<unit>)
 }

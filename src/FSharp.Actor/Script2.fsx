@@ -6,6 +6,8 @@
 #load "Logger.fs"
 #load "EventStream.fs"
 #load "Transport.fs"
+#load "Environment.fs"
+#load "Actor.Definition.fs"
 #load "Actor.Operations.fs"
 #load "Actor.Impl.fs"
 #load "Actor.fs"
