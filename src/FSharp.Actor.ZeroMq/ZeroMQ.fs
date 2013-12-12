@@ -8,8 +8,8 @@ open FsCoreSerializer
 open System.Text
 
 type ZeroMqMessage = {
-    Target : string
-    Sender : string
+    Target : ActorPath
+    Sender : ActorPath
     Message : obj
 }
 with
@@ -27,10 +27,11 @@ with
 
     member x.ToMessage() : Message<obj> = 
         let target = 
-            (Uri(x.Target).GetLeftPart(UriPartial.Authority))
+            let uri = Uri(x.Target).GetComponents(UriComponents.Host ||| UriComponents.PathAndQuery, UriFormat.UriEscaped)
+            resolve uri
         {
             Sender = (resolve x.Sender)
-            Target = (resolve target)
+            Target = target
             Message = x.Message
         }
 
@@ -43,16 +44,20 @@ type ZeroMqTransport(pubUri:Uri, subUri:Uri, ?logger:ILogger, ?serializer:ISeria
 
     let bind uri sockType = 
         let socket = zmqContext.CreateSocket(sockType)
-        socket.Bind(uri)
+        match sockType with
+        | SocketType.SUB -> ()
+        | SocketType.PUB -> socket.Bind(uri)
+        | _ -> failwithf "Unable to handle socket type %A" sockType
         socket
 
     let publisher, subscriber = (bind pubUri.AbsoluteUri SocketType.PUB, bind subUri.AbsoluteUri SocketType.SUB)
 
     let send (toSend:Message<obj>) =
         try
-             let msg = ZmqMessage()
+             let toSend = ZeroMqMessage.ofMessage(pubUri, toSend)
+             let header = Frame(Encoding.UTF8.GetBytes("fsharpactor"))
              let payload = Frame(serializer.Serialize(toSend))
-             publisher.SendMessage(ZmqMessage([|payload|])) |> ignore
+             publisher.SendMessage(ZmqMessage([|header;payload|])) |> ignore
         with e -> 
              logger.Error("An error occured sending message", [||], Some e)              
         
@@ -60,14 +65,16 @@ type ZeroMqTransport(pubUri:Uri, subUri:Uri, ?logger:ILogger, ?serializer:ISeria
         async {
             try
                 use socket = subscriber
-                socket.SubscribeAll()
+                socket.Subscribe(Encoding.UTF8.GetBytes("fsharpactor"))
                 socket.Connect(subUri.AbsoluteUri)
 
                 while true do 
                     let msg = socket.ReceiveMessage()
-                    let bytes = (msg.[0].Buffer) 
-                    let result = (serializer.Deserialize(bytes) :?> ZeroMqMessage).ToMessage()
-                    result.Target |> post <| result.Message                
+                    if msg.FrameCount > 1
+                    then
+                        let bytes = (msg.[1].Buffer) 
+                        let result = (serializer.Deserialize(bytes) :?> ZeroMqMessage).ToMessage()
+                        result.Target |> post <| result.Message                
             with e -> 
                 logger.Error("An error occured sending message", [||], Some e)  
         }

@@ -23,7 +23,8 @@ module Operations =
             if uri.IsAbsoluteUri && (uri.Scheme <> "local")
             then
                 match ActorSystem.TryResolveTransport(uri.Scheme) with
-                | Some(t) -> Remote(t, uri.GetLeftPart(UriPartial.Scheme))
+                | Some(t) ->
+                    Remote(t, uri.AbsoluteUri)
                 | None -> Null
             else
                 let path = 
@@ -36,7 +37,7 @@ module Operations =
     let post (target:ActorRef) (msg:'a) = 
         let sender = getSenderRef()
         match target with
-        | Remote(transport, path) -> transport.Post({ Target = target; Sender = Remote(transport, sender.Path); Message = msg })
+        | Remote(transport, path) -> transport.Post({ Target = target; Sender = sender; Message = msg })
         | Local(actor) -> actor.Post(msg, sender)
         | Null -> ()
     

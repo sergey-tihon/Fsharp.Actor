@@ -6,7 +6,7 @@
 #load "Logger.fs"
 #load "EventStream.fs"
 #load "Transport.fs"
-#load "Environment.fs"
+#load "Actor.System.fs"
 #load "Actor.Definition.fs"
 #load "Actor.Operations.fs"
 #load "Actor.Impl.fs"
@@ -17,9 +17,10 @@ open System
 open FSharp.Actor
 
 let logger = Logger.create "console"
-let es = new DefaultEventStream() :> IEventStream
 
-es.Subscribe(function
+ActorSystem.Configure()
+
+ActorSystem.EventStream.Subscribe(function
              | ActorStarted(ref) -> logger.Debug("Actor Started {0}",[|ref|], None)
              | ActorShutdown(ref) -> logger.Debug("Actor Shutdown {0}",[|ref|], None)
              | ActorRestart(ref) -> logger.Debug("Actor Restart {0}",[|ref|], None)
@@ -42,7 +43,6 @@ let sup =
 let errorActor = 
     actor { 
         path "exampleActor"
-        raiseEventsOn es
         supervisedBy sup
         messageHandler (fun (ctx:ActorContext<string>) ->
                           let rec loop count = 
@@ -56,7 +56,7 @@ let errorActor =
                                   return! loop (count + 1)
                               }
                           loop 0)
-    } |> Actor.create |> Actor.register |> Actor.ref 
+    } |> Actor.fromDefinition |> Actor.register |> Actor.ref 
 
 let publisher = 
     async {

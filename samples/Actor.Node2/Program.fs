@@ -7,36 +7,30 @@ open FSharp.Actor.ZeroMq
 open FsCoreSerializer
 
 do
-  Node.Configure [
-        ActorSystemConfiguration.Create(
-                "node-2",
-                [ZeroMQ.transport "tcp://127.0.0.1:6667" "tcp://127.0.0.1:6666" (new FsCoreSerializer())]
-                )]
+  ActorSystem.Configure(
+    transports = [
+        new ZeroMqTransport(Uri("tcp://127.0.0.1:6667"), Uri("tcp://127.0.0.1:6666"), serializer = new FsCoreSerializer())
+  ])
 
 let pingPong = 
-    Node.System("node-2").ActorOf("ping-pong", 
-       (fun (actor:Actor) ->
-            let log = actor.Log
+    Actor.create "ping-pong" 
+       (fun (actor:ActorContext<string>) ->
+            let log = actor.Logger
             let rec loop() = 
                 async {
-                    let! msg = actor.ReceiveEnvelope()
-                    log.Debug(sprintf "Actor Msg: %A %A" msg.Message msg.Sender, None)
+                    let! msg = actor.Receive()
+                    log.Debug(sprintf "Actor Msg: {0} from {1}",[|msg.Message; msg.Sender|], None)
                     return! loop()
                 }
-            loop()
-        ))
+            loop())
+    |> Actor.register |> Actor.ref
 
 [<EntryPoint>]
 let main argv =
+    printfn "Press any key to send a message to node one"
     Console.ReadLine() |> ignore
    
-    pingPong <!- "Hello"
-
-    let mutable ended = false
-    while not <| ended do
-        !!"ping-pong" <-- "Ping node-2"
-        let input = Console.ReadLine()
-        ended <- input = "exit"
+    !!"zeromq://ping-pong" <-- "Hello from node-2"
 
     Console.ReadLine() |> ignore
 
