@@ -17,7 +17,7 @@ module Supervisor =
                         match msg.Message with
                         | SupervisorMessage.Errored(error) -> 
                             let! (result : SystemMessage) = exceptionHandler { Error = error; Children = ctx.Children }
-                            msg.Sender |> post <| result
+                            msg.Sender <-- result
                             return! loop()
                     } 
                 loop()   

@@ -130,7 +130,7 @@ with
     member x.Scan(f, ?timeout) = 
         async { return! x.Mailbox.Scan(defaultArg timeout Timeout.Infinite, f) }
 
-type ActorDefinition<'a> = {
+type ActorConfiguration<'a> = {
     Path : ActorPath
     EventStream : IEventStream
     Supervisor : ActorRef

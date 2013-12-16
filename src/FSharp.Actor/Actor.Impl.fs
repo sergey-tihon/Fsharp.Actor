@@ -11,7 +11,7 @@ open FSharp.Actor
 open FSharp.Actor
 #endif
                 
-type Actor<'a>(defn:ActorDefinition<'a>) as self = 
+type Actor<'a>(defn:ActorConfiguration<'a>) as self = 
     let mailbox = new DefaultMailbox<Message<'a>>() :> IMailbox<_>
     let logger = Logger.create defn.Path
     let systemMailbox = new DefaultMailbox<SystemMessage>() :> IMailbox<_>
@@ -45,7 +45,7 @@ type Actor<'a>(defn:ActorDefinition<'a>) as self =
             match defn.Supervisor with
             | Null -> return! shutdown()  
             | ref -> 
-                ref |> post <| SupervisorMessage.Errored(err)
+                ref |> Operations.post <| SupervisorMessage.Errored(err)
                 return ()  
         }
 

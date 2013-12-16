@@ -7,8 +7,7 @@
 #load "EventStream.fs"
 #load "Transport.fs"
 #load "Actor.System.fs"
-#load "Actor.Definition.fs"
-#load "Actor.Operations.fs"
+#load "Actor.Configuration.fs"
 #load "Actor.Impl.fs"
 #load "Actor.fs"
 #load "Supervisor.fs"
@@ -61,20 +60,20 @@ let errorActor =
 let publisher = 
     async {
         while true do
-            errorActor |> post <| "OK"
+            errorActor <-- "OK"
             Threading.Thread.Sleep(1000)
     }
 
 Async.Start(publisher)
 
-errorActor |> post <| Shutdown
-errorActor |> post <| Restart
+errorActor <-- Shutdown
+errorActor <-- Restart
 
 (errorActor :> IDisposable).Dispose()
 
-errorActor |> post <| "Restart"
-errorActor |> post <| "Fail"
+errorActor <-- "Restart"
+errorActor <-- "Fail"
 
-resolve "fracture://remote/actor"
+!!"fracture://remote/actor"
 
-resolve "local://exampleActor"
+!!"local://exampleActor"

@@ -6,10 +6,10 @@ open System.Threading
 open FSharp.Actor
 #endif
 
+[<RequireQualifiedAccess>]
 module Actor = 
 
-    let fromDefinition config = 
-        (new Actor<_>(config))
+    let fromDefinition config = new Actor<_>(config)
 
     let create name handler = 
         actor {
@@ -18,6 +18,10 @@ module Actor =
         } |> fromDefinition
 
     let ref actor = Local actor
+
+    let sender() = Operations.getSenderRef()
+
+    let resolve path = Operations.resolve path
 
     let unType<'a> (actor:IActor<'a>) = 
         (actor :?> Actor<'a>) :> IActor
@@ -29,3 +33,9 @@ module Actor =
 
     let spawn config = 
         config |> (fromDefinition >> register)
+
+[<AutoOpen>]
+module ActorOperators = 
+    let inline (!!) path = resolve path
+    let inline (<--) target msg = post target msg
+    let inline (-->) msg target = post target msg

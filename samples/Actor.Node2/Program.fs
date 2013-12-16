@@ -6,11 +6,22 @@ open FSharp.Actor
 open FSharp.Actor.ZeroMq
 open FsCoreSerializer
 
+let logger = Logger.create "Node-2"
+
 do
   ActorSystem.Configure(
     transports = [
         new ZeroMqTransport(Uri("tcp://127.0.0.1:6667"), Uri("tcp://127.0.0.1:6666"), serializer = new FsCoreSerializer())
   ])
+
+  ActorSystem.EventStream.Subscribe(function
+             | ActorStarted(ref) -> logger.Debug("Actor Started {0}",[|ref|], None)
+             | ActorShutdown(ref) -> logger.Debug("Actor Shutdown {0}",[|ref|], None)
+             | ActorRestart(ref) -> logger.Debug("Actor Restart {0}",[|ref|], None)
+             | ActorErrored(ref,err) -> logger.Error("Actor Errored {0}", [|ref|], Some err)
+             | ActorAddedChild(parent, ref) -> logger.Debug("Linked Actors {1} -> {0}",[|parent; ref|], None)
+             | ActorRemovedChild(parent, ref) -> logger.Debug("UnLinked Actors {1} -> {0}",[|parent;ref|], None)
+             )
 
 let pingPong = 
     Actor.create "ping-pong" 

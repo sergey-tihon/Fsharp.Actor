@@ -14,7 +14,7 @@ module ActorConfiguration =
              async { return! loop() }
         loop()
 
-    type ActorDefinitionBuilder internal() = 
+    type ActorConfigurationBuilder internal() = 
         member x.Zero() = { 
             Path = Guid.NewGuid().ToString(); 
             EventStream = ActorSystem.EventStream
@@ -22,19 +22,19 @@ module ActorConfiguration =
             Behaviour = emptyBehaviour  }
         member x.Yield(()) = x.Zero()
         [<CustomOperation("inherits", MaintainsVariableSpace = true)>]
-        member x.Inherits(ctx:ActorDefinition<'a>, b:ActorDefinition<_>) = b
+        member x.Inherits(ctx:ActorConfiguration<'a>, b:ActorConfiguration<_>) = b
         [<CustomOperation("path", MaintainsVariableSpace = true)>]
-        member x.Path(ctx:ActorDefinition<'a>, name) = 
+        member x.Path(ctx:ActorConfiguration<'a>, name) = 
             {ctx with Path = name }
         [<CustomOperation("messageHandler", MaintainsVariableSpace = true)>]
-        member x.MsgHandler(ctx:ActorDefinition<'a>, behaviour) = 
+        member x.MsgHandler(ctx:ActorConfiguration<'a>, behaviour) = 
             { ctx with Behaviour = behaviour }
         [<CustomOperation("supervisedBy", MaintainsVariableSpace = true)>]
-        member x.SupervisedBy(ctx:ActorDefinition<'a>, sup) = 
+        member x.SupervisedBy(ctx:ActorConfiguration<'a>, sup) = 
             { ctx with Supervisor = sup }
         [<CustomOperation("raiseEventsOn", MaintainsVariableSpace = true)>]
-        member x.RaiseEventsOn(ctx:ActorDefinition<'a>, es) = 
+        member x.RaiseEventsOn(ctx:ActorConfiguration<'a>, es) = 
             { ctx with EventStream = es }
 
-    let actor = new ActorDefinitionBuilder()
+    let actor = new ActorConfigurationBuilder()
 

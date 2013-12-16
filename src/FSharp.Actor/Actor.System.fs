@@ -36,3 +36,36 @@ type ActorSystem internal() =
         eventStream := (defaultArg evntStream (new DefaultEventStream() :> IEventStream))
         ActorSystem.RegisterTransports(defaultArg transports Seq.empty)
 
+[<AutoOpen>]
+module Operations =
+
+    let getSenderRef() = 
+        let sender = CallContext.LogicalGetData("actor")
+        match sender with
+        | null -> Null
+        | :? IActor as actor -> Local(actor)
+        | _ -> failwithf "Unknown sender ref %A" sender
+
+    let resolve (target:ActorPath) =
+        match Uri.TryCreate(target, UriKind.RelativeOrAbsolute) with
+        | true, uri -> 
+            if uri.IsAbsoluteUri && (uri.Scheme <> "local")
+            then
+                match ActorSystem.TryResolveTransport(uri.Scheme) with
+                | Some(t) ->
+                    Remote(t, uri.AbsoluteUri)
+                | None -> Null
+            else
+                let path = 
+                    if uri.IsAbsoluteUri
+                    then uri.Host + "/" + uri.PathAndQuery
+                    else target
+                ActorSystem.LocalTransport.Resolve (path.TrimEnd([|'/'|]))
+        | _ -> failwithf "Not a valid ActorPath %s" target
+
+    let post (target:ActorRef) (msg:'a) = 
+        let sender = getSenderRef()
+        match target with
+        | Remote(transport, path) -> transport.Post({ Target = target; Sender = sender; Message = msg })
+        | Local(actor) -> actor.Post(msg, sender)
+        | Null -> ()
