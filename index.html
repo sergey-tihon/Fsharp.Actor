@@ -1,91 +1,92 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
-    <title>F# Actor: An F# actor library</title>
+    <title>F# Actor Framework
+</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="The F# Actor Library">
+    <meta name="description" content="F# Actor Framework">
     <meta name="author" content="Colin Bull">
 
-    <script src="http://code.jquery.com/jquery-1.8.0.js"></script>
-    <script src="http://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
-    <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
-    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.min.js"></script>
+    <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
 
-    <link type="text/css" rel="stylesheet" href="stylesheets/style.css" />
+    <link type="text/css" rel="stylesheet" href="/Fsharp.Actor/content/style.css" />
+    <script type="text/javascript" src="/Fsharp.Actor/content/tips.js"></script>
+    <style>
+        body {
+            font-family: Ovo, serif;
+        }
+        table.pre, pre.fssnip, pre {
+            white-space: pre-wrap;
+        }
+        table.pre td.lines {
+            display: none;
+        }
+    </style>
     <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-  </head>
-  <body>
-
+</head>
+<body>
     <div class="container">
-      <div class="masthead">
-        <ul class="nav nav-pills pull-right">
-          <li><a href="http://fsharp.org">fsharp.org</a></li>
-		  <li><a href="http://github.com/colinbull/Fsharp.Actor">on github</a></li>
-        </ul>
-        <h3 class="muted">F# Actor Framework</h3>
-      </div>
-      <hr>
-
-      <div class="row">
-        <div class="span9" id="main"> 
-          <h1>F# Actor Framework</h1>
-
-          <p>The F# Actor Framework (<code>FSharp.Actor.dll</code>)
-			 
-		  </p>
-
-          <div class="row">
-            <div class="span1"></div>
-            <div class="span6">
-              <div class="well well-small" id="nuget">
-                F# Actor is available as <a href="https://nuget.org/packages/FSharp.Actor">FSharp.Actor on NuGet</a>.
-                To install the library, run the following command in the <a href="http://docs.nuget.org/docs/start-here/using-the-package-manager-console">Package Manager Console</a>:
-                <pre>PM> Install-Package FSharp.Actor</pre>
-              </div>
-            </div>
-            <div class="span1"></div>
-          </div>
-
-          <p>Alternatively, you can download the <a href="https://github.com/colinbull/Fsharp.Actor/zipball/master">source as a ZIP file.</a>
-          </p>
-		  
-          <h2>Library license</h2>
-
-          <p>The library is available under Apache 2.0. For more information see the 
-          <a href="https://github.com/colinbull/Fsharp.Actor/blob/master/License.md">License file</a> in the 
-          GitHub repository.</p>
+        <div class="masthead">
+            <ul class="nav nav-pills pull-right">
+                <li><a href="http://fsharp.org">fsharp.org</a></li>
+                <li><a href="https://github.com/colinbull/Fsharp.Actor">github page</a></li>
+            </ul>
+            <h3 class="muted"><a href="/Fsharp.Actor/index.html">Fsharp.Actor</a></h3>
         </div>
+        <hr />
+        <div class="row">
+            <div class="span9" id="main">
+                
+<h1>F# Actor Framework</h1>
 
-        <div class="span3">
+<p>The F# Actor Framework (<code>FSharp.Actor.dll</code>)</p>
 
-          <ul class="nav nav-list" id="menu">
-            <li class="nav-header">F# Actor Library</li>
-            <li><a href="http://colinbull.github.com/Fsharp.Actor/">Home page</a></li>
-            <li class="divider"></li>
-            <li><a href="https://nuget.org/packages/Fsharp.Actor">Get Library via NuGet</a></li>
-            <li><a href="https://github.com/colinbull/Fsharp.Actor">Source Code on GitHub</a></li>
-            <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/LICENSE.md">License (Apache 2.0)</a></li>
-            
-            <li class="nav-header">F# Actor Documentation</li>
-            <li><a href="Actor.html">Actors</a></li>
-            <li><a href="Supervision.html">Supervision</a></li>
-            <li><a href="Patterns.html">Patterns</a></li>
-            <li><a href="Remoting.html">Remoting</a></li>
-            <li class="divider"></li>
-          </ul>
-
-        </div>
-      </div>
-      </div>
+<div class="row">
+  <div class="span1"></div>
+  <div class="span6">
+    <div class="well well-small" id="nuget">
+      F# Actor is available as <a href="https://www.nuget.org/packages/FSharp.Actor" target="_blank">FSharp.Actor on NuGet</a>. 
+      To install the library, run the following command in the <a href="http://docs.nuget.org/docs/start-here/using-the-package-manager-console" target="_blank">Package Manager Console</a>:
+      <pre>PM> Install-Package FSharp.Actor</pre>
     </div>
+  </div>
+  <div class="span1"></div>
+</div>
 
-    <a href="https://github.com/colinbull/FSharp.Enterprise"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png" alt="Fork me on GitHub"></a>
-  </body>
-  </html>
-  </body>
-  </html>
+<p>Alternatively, you can download the <a href="https://github.com/colinbull/Fsharp.Actor/zipball/master" target="_blank">source as a ZIP file</a>.</p>
+
+<h2>Library license</h2>
+
+<p>The library is available under Apache 2.0. For more information see the <a href="https://github.com/colinbull/Fsharp.Actor/blob/master/License.md" target="_blank">License file</a> in the GitHub repository.</p>
+
+
+            </div>
+            <div class="span3">
+                <ul class="nav nav-list" id="menu">
+                    <li class="nav-header">Fsharp.Actor</li>
+                    <li><a href="/Fsharp.Actor/index.html">Home page</a></li>
+                    <li class="divider"></li>
+                    <li><a href="https://www.nuget.org/packages/Fsharp.Actor">Get Library via NuGet</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor">Source Code on GitHub</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/LICENSE.md">License (Apache 2.0)</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/RELEASE_NOTES.md">Release Notes</a></li>
+
+                    <li class="nav-header">F# Actor documentation</li>
+                    <li><a href="/Fsharp.Actor/Actor.html">Actors</a></li>
+                    <li><a href="/Fsharp.Actor/Supervision.html">Supervision</a></li>
+                    <li><a href="/Fsharp.Actor/Patterns.html">Patterns</a></li>
+                    <li><a href="/Fsharp.Actor/Remoting.html">Remoting</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <a href="https://github.com/colinbull/Fsharp.Actor"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png" alt="Fork me on GitHub"></a>
+</body>
+</html>
