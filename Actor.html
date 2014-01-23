@@ -86,12 +86,9 @@
     [
        <span onmouseout="hideTip(event, 'fs15', 44)" onmouseover="showTip(event, 'fs15', 44)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 45)" onmouseover="showTip(event, 'fs16', 45)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs15', 46)" onmouseover="showTip(event, 'fs15', 46)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 47)" onmouseover="showTip(event, 'fs17', 47)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 48)" onmouseover="showTip(event, 'fs18', 48)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs13', 49)" onmouseover="showTip(event, 'fs13', 49)" class="i">addition</span>
        <span onmouseout="hideTip(event, 'fs15', 50)" onmouseover="showTip(event, 'fs15', 50)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 51)" onmouseover="showTip(event, 'fs16', 51)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs15', 52)" onmouseover="showTip(event, 'fs15', 52)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 53)" onmouseover="showTip(event, 'fs17', 53)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 54)" onmouseover="showTip(event, 'fs18', 54)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">multiplication</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs1', 55)" onmouseover="showTip(event, 'fs1', 55)" class="i">multiplication</span>
-    ]</pre>
+    ]
 
-
-<p>The above code creates two actors <code>calcualtor/addition</code> and <code>calculator/multiplication</code></p>
-
-<pre class="fssnip">
+<span class="c">// The above code creates two actors `calcualtor/addition` and `calculator/multiplication`</span>
 <span class="fsi">calculator/addition pre-start Status: Shutdown &quot;Initial Startup&quot;</span>
 <span class="fsi">calculator/addition started Status: Running &quot;Initial Startup&quot;</span>
 <span class="fsi">calculator/multiplication pre-start Status: Shutdown &quot;Initial Startup&quot;</span>
@@ -109,12 +106,9 @@
 
 <pre class="fssnip">
 <span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)
-<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">multiplication</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)</pre>
+<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">multiplication</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)
 
-
-<p>Sending both of these messages yields</p>
-
-<pre class="fssnip">
+<span class="c">// Sending both of these messages yields</span>
 <span class="fsi">actor://main-pc/calculator/addition: 5 + 2 = 7</span>
 <span class="fsi">actor://main-pc/calculator/multiplication: 5 * 2 = 10</span></pre>
 
@@ -122,24 +116,18 @@
 <p>We can also send messages directly to actors if we have their <code>ActorRef</code></p>
 
 <pre class="fssnip">
-<span onmouseout="hideTip(event, 'fs14', 56)" onmouseover="showTip(event, 'fs14', 56)" class="i">calculator</span><span class="o">.</span>[<span class="n">0</span>] <span class="o">&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)</pre>
+<span onmouseout="hideTip(event, 'fs14', 56)" onmouseover="showTip(event, 'fs14', 56)" class="i">calculator</span><span class="o">.</span>[<span class="n">0</span>] <span class="o">&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)
 
-
-<p>This also yields</p>
-
-<pre class="fssnip">
+<span class="c">// This also yields </span>
 <span class="fsi">actor://main-pc/calculator/addition: 5 + 2 = 7</span></pre>
 
 
 <p>Or we could have broadcast to all of the actors in that collection</p>
 
 <pre class="fssnip">
-<span onmouseout="hideTip(event, 'fs14', 57)" onmouseover="showTip(event, 'fs14', 57)" class="i">calculator</span> <span class="o">&lt;-*</span> (<span class="n">5</span>,<span class="n">2</span>)</pre>
+<span onmouseout="hideTip(event, 'fs14', 57)" onmouseover="showTip(event, 'fs14', 57)" class="i">calculator</span> <span class="o">&lt;-*</span> (<span class="n">5</span>,<span class="n">2</span>)
 
-
-<p>This also yields</p>
-
-<pre class="fssnip">
+<span class="c">// This also yields </span>
 <span class="fsi">actor://main-pc/calculator/addition: 5 + 2 = 7</span>
 <span class="fsi">actor://main-pc/calculator/multiplication: 5 * 2 = 10</span></pre>
 
@@ -147,12 +135,9 @@
 <p>We can also resolve <em>systems</em> of actors.</p>
 
 <pre class="fssnip">
-<span class="s">&quot;</span><span class="s">calculator</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)</pre>
+<span class="s">&quot;</span><span class="s">calculator</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)
 
-
-<p>This also yields</p>
-
-<pre class="fssnip">
+<span class="c">// This also yields </span>
 <span class="fsi">actor://main-pc/calculator/addition: 5 + 2 = 7</span>
 <span class="fsi">actor://main-pc/calculator/multiplication: 5 * 2 = 10</span></pre>
 
@@ -160,30 +145,20 @@
 <p>However this actor wont be found because it does not exist</p>
 
 <pre class="fssnip">
-<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">/</span><span class="s">foo</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)</pre>
+<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">/</span><span class="s">foo</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> (<span class="n">5</span>,<span class="n">2</span>)
 
-
-<p>resulting in a <code>KeyNotFoundException</code></p>
-
-<pre class="fssnip">
+<span class="c">// resulting in a `KeyNotFoundException`</span>
 <span class="fsi">System.Collections.Generic.KeyNotFoundException: Could not find actor calculator/addition/foo</span></pre>
 
 
 <p>We can also kill actors</p>
 
 <pre class="fssnip">
-<span onmouseout="hideTip(event, 'fs14', 58)" onmouseover="showTip(event, 'fs14', 58)" class="i">calculator</span><span class="o">.</span>[<span class="n">1</span>] <span class="o">&lt;!-</span> (<span onmouseout="hideTip(event, 'fs19', 59)" onmouseover="showTip(event, 'fs19', 59)" class="i">Shutdown</span>(<span class="s">&quot;</span><span class="s">Cause</span><span class="s"> </span><span class="s">I</span><span class="s"> </span><span class="s">want</span><span class="s"> </span><span class="s">to</span><span class="s">&quot;</span>))</pre>
+<span onmouseout="hideTip(event, 'fs14', 58)" onmouseover="showTip(event, 'fs14', 58)" class="i">calculator</span><span class="o">.</span>[<span class="n">1</span>] <span class="o">&lt;!-</span> (<span onmouseout="hideTip(event, 'fs19', 59)" onmouseover="showTip(event, 'fs19', 59)" class="i">Shutdown</span>(<span class="s">&quot;</span><span class="s">Cause</span><span class="s"> </span><span class="s">I</span><span class="s"> </span><span class="s">want</span><span class="s"> </span><span class="s">to</span><span class="s">&quot;</span>))
+<span class="c">// or</span>
+<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">&quot;</span> <span class="o">?&lt;!-</span> (<span onmouseout="hideTip(event, 'fs19', 60)" onmouseover="showTip(event, 'fs19', 60)" class="i">Shutdown</span>(<span class="s">&quot;</span><span class="s">Cause</span><span class="s"> </span><span class="s">I</span><span class="s"> </span><span class="s">want</span><span class="s"> </span><span class="s">to</span><span class="s">&quot;</span>))
 
-
-<p>or</p>
-
-<pre class="fssnip">
-<span class="s">&quot;</span><span class="s">calculator</span><span class="s">/</span><span class="s">addition</span><span class="s">&quot;</span> <span class="o">?&lt;!-</span> (<span onmouseout="hideTip(event, 'fs19', 60)" onmouseover="showTip(event, 'fs19', 60)" class="i">Shutdown</span>(<span class="s">&quot;</span><span class="s">Cause</span><span class="s"> </span><span class="s">I</span><span class="s"> </span><span class="s">want</span><span class="s"> </span><span class="s">to</span><span class="s">&quot;</span>))</pre>
-
-
-<p>Sending now sending any message to the actor will result in an exception</p>
-
-<pre class="fssnip">
+<span class="c">// Sending now sending any message to the actor will result in an exception </span>
 <span class="fsi">System.InvalidOperationException: Actor (actor://main-pc/calculator/addition) could not handle message, State: Shutdown</span></pre>
 
 
@@ -213,18 +188,10 @@
 
 <span class="k">let</span> <span onmouseout="hideTip(event, 'fs30', 93)" onmouseover="showTip(event, 'fs30', 93)" class="i">schizo</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs15', 94)" onmouseover="showTip(event, 'fs15', 94)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 95)" onmouseover="showTip(event, 'fs16', 95)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs15', 96)" onmouseover="showTip(event, 'fs15', 96)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 97)" onmouseover="showTip(event, 'fs17', 97)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 98)" onmouseover="showTip(event, 'fs18', 98)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">schizo</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs20', 99)" onmouseover="showTip(event, 'fs20', 99)" class="i">schizoPing</span> 
 
-<span class="o">!!</span><span class="s">&quot;</span><span class="s">schizo</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Hello</span><span class="s">&quot;</span></pre>
+<span class="o">!!</span><span class="s">&quot;</span><span class="s">schizo</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Hello</span><span class="s">&quot;</span>
 
-
-<p>Sending two messages to the 'schizo' actor results in</p>
-
-<pre class="fssnip">
-<span class="fsi">(schizo): &quot;Hello&quot; ping</span></pre>
-
-
-<p>followed by</p>
-
-<pre class="fssnip">
+<span class="c">// Sending two messages to the &#39;schizo&#39; actor results:</span>
+<span class="fsi">(schizo): &quot;Hello&quot; ping</span>
 <span class="fsi">(schizo): &quot;Hello&quot; pong</span></pre>
 
 
@@ -258,12 +225,9 @@
                 <span onmouseout="hideTip(event, 'fs34', 146)" onmouseover="showTip(event, 'fs34', 146)" class="i">loop</span>()    
             ) 
 
-<span onmouseout="hideTip(event, 'fs36', 147)" onmouseover="showTip(event, 'fs36', 147)" class="i">parent</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Forward</span><span class="s"> </span><span class="s">this</span><span class="s"> </span><span class="s">to</span><span class="s"> </span><span class="s">your</span><span class="s"> </span><span class="s">children</span><span class="s">&quot;</span></pre>
+<span onmouseout="hideTip(event, 'fs36', 147)" onmouseover="showTip(event, 'fs36', 147)" class="i">parent</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Forward</span><span class="s"> </span><span class="s">this</span><span class="s"> </span><span class="s">to</span><span class="s"> </span><span class="s">your</span><span class="s"> </span><span class="s">children</span><span class="s">&quot;</span>
 
-
-<p>This outputs</p>
-
-<pre class="fssnip">
+<span class="c">// This outputs</span>
 <span class="fsi">actor://main-pc/a/child_1 recieved &quot;Forward this to your children&quot;</span>
 <span class="fsi">actor://main-pc/a/child_3 recieved &quot;Forward this to your children&quot;</span>
 <span class="fsi">actor://main-pc/a/child_2 recieved &quot;Forward this to your children&quot;</span>
@@ -276,12 +240,9 @@
 <pre class="fssnip">
 <span onmouseout="hideTip(event, 'fs15', 148)" onmouseover="showTip(event, 'fs15', 148)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs41', 149)" onmouseover="showTip(event, 'fs41', 149)" class="i">unlink</span> <span class="o">!*</span><span class="s">&quot;</span><span class="s">a</span><span class="s">/</span><span class="s">child_0</span><span class="s">&quot;</span> <span onmouseout="hideTip(event, 'fs36', 150)" onmouseover="showTip(event, 'fs36', 150)" class="i">parent</span>
 
-<span onmouseout="hideTip(event, 'fs36', 151)" onmouseover="showTip(event, 'fs36', 151)" class="i">parent</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Forward</span><span class="s"> </span><span class="s">this</span><span class="s"> </span><span class="s">to</span><span class="s"> </span><span class="s">your</span><span class="s"> </span><span class="s">children</span><span class="s">&quot;</span></pre>
+<span onmouseout="hideTip(event, 'fs36', 151)" onmouseover="showTip(event, 'fs36', 151)" class="i">parent</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">Forward</span><span class="s"> </span><span class="s">this</span><span class="s"> </span><span class="s">to</span><span class="s"> </span><span class="s">your</span><span class="s"> </span><span class="s">children</span><span class="s">&quot;</span>
 
-
-<p>This outputs</p>
-
-<pre class="fssnip">
+<span class="c">// This outputs</span>
 <span class="fsi">actor://main-pc/a/child_1 recieved &quot;Forward this to your children&quot;</span>
 <span class="fsi">actor://main-pc/a/child_3 recieved &quot;Forward this to your children&quot;</span>
 <span class="fsi">actor://main-pc/a/child_2 recieved &quot;Forward this to your children&quot;</span>

@@ -80,12 +80,9 @@
         <span class="o">&lt;|</span> <span onmouseout="hideTip(event, 'fs12', 19)" onmouseover="showTip(event, 'fs12', 19)" class="i">Supervisor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs14', 20)" onmouseover="showTip(event, 'fs14', 20)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs15', 21)" onmouseover="showTip(event, 'fs15', 21)" class="i">Create</span>(<span class="i">actorOptions</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs16', 22)" onmouseover="showTip(event, 'fs16', 22)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 23)" onmouseover="showTip(event, 'fs17', 23)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 24)" onmouseover="showTip(event, 'fs18', 24)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">OneForOne</span><span class="s">&quot;</span>))
     <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs12', 25)" onmouseover="showTip(event, 'fs12', 25)" class="i">Supervisor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs19', 26)" onmouseover="showTip(event, 'fs19', 26)" class="i">superviseAll</span> [<span onmouseout="hideTip(event, 'fs16', 27)" onmouseover="showTip(event, 'fs16', 27)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs20', 28)" onmouseover="showTip(event, 'fs20', 28)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs16', 29)" onmouseover="showTip(event, 'fs16', 29)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 30)" onmouseover="showTip(event, 'fs17', 30)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 31)" onmouseover="showTip(event, 'fs18', 31)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">err_0</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs1', 32)" onmouseover="showTip(event, 'fs1', 32)" class="i">err</span>]
 
-<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_0</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span></pre>
+<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_0</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span>
 
-
-<p>This yields</p>
-
-<pre class="fssnip">
+<span class="c">// This yields</span>
 <span class="fsi">Restarting (OneForOne: actor://main-pc/err_0) due to error System.Exception: ERRRROROROR</span>
 <span class="fsi">    at FSI_0012.err@134-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 134</span>
 <span class="fsi">    at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)</span>
@@ -119,12 +116,10 @@
             <span onmouseout="hideTip(event, 'fs16', 53)" onmouseover="showTip(event, 'fs16', 53)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs20', 54)" onmouseover="showTip(event, 'fs20', 54)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs16', 55)" onmouseover="showTip(event, 'fs16', 55)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 56)" onmouseover="showTip(event, 'fs17', 56)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 57)" onmouseover="showTip(event, 'fs18', 57)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">err_2</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs1', 58)" onmouseover="showTip(event, 'fs1', 58)" class="i">err</span>
         ]
 <span class="s">&quot;</span><span class="s">err_1</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span class="s">&quot;</span><span class="s">Boo</span><span class="s">&quot;</span>
-<span class="s">&quot;</span><span class="s">err_2</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span></pre>
+<span class="s">&quot;</span><span class="s">err_2</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span>
 
 
-<p>This yields</p>
-
-<pre class="fssnip">
+<span class="c">// This yields</span>
 <span class="fsi">Restarting (OneForAll actor://main-pc/err_1) due to error System.Exception: ERRRROROROR</span>
 <span class="fsi">    at FSI_0004.err@134-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 134</span>
 <span class="fsi">    at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)</span>
@@ -162,12 +157,9 @@
             <span onmouseout="hideTip(event, 'fs16', 79)" onmouseover="showTip(event, 'fs16', 79)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs20', 80)" onmouseover="showTip(event, 'fs20', 80)" class="i">spawn</span> (<span onmouseout="hideTip(event, 'fs16', 81)" onmouseover="showTip(event, 'fs16', 81)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs17', 82)" onmouseover="showTip(event, 'fs17', 82)" class="i">Options</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 83)" onmouseover="showTip(event, 'fs18', 83)" class="i">Create</span>(<span class="s">&quot;</span><span class="s">err_4</span><span class="s">&quot;</span>)) <span onmouseout="hideTip(event, 'fs1', 84)" onmouseover="showTip(event, 'fs1', 84)" class="i">err</span>
         ]
 
-<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_3</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span></pre>
+<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_3</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span>
 
-
-<p>This yields</p>
-
-<pre class="fssnip">
+<span class="c">// This yields</span>
 <span class="fsi">Terminating (AlwaysTerminate: actor://main-pc/err_1) due to error System.Exception: ERRRROROROR</span>
 <span class="fsi">    at FSI_0005.err@138-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 138</span>
 <span class="fsi">    at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)</span>
@@ -197,12 +189,9 @@
 
 <span onmouseout="hideTip(event, 'fs16', 111)" onmouseover="showTip(event, 'fs16', 111)" class="i">Actor</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 112)" onmouseover="showTip(event, 'fs27', 112)" class="i">unwatch</span> <span class="o">!*</span><span class="s">&quot;</span><span class="s">err_6</span><span class="s">&quot;</span> 
 
-<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_5</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span></pre>
+<span class="o">!!</span><span class="s">&quot;</span><span class="s">err_5</span><span class="s">&quot;</span> <span class="o">&lt;--</span> <span class="s">&quot;</span><span class="s">fail</span><span class="s">&quot;</span>
 
-
-<p>We now see that one actor <code>err_1</code> has restarted</p>
-
-<pre class="fssnip">
+<span class="c">// We now see that one actor `err_1` has restarted</span>
 <span class="fsi">Restarting (OneForAll actor://main-pc/err_1) due to error System.Exception: ERRRROROROR</span>
 <span class="fsi">    at FSI_0004.err@164-2.Invoke(String message) in D:\Appdev\fsharp.actor\samples\Actor.fsx:line 164</span>
 <span class="fsi">    at Microsoft.FSharp.Core.PrintfImpl.go@523-3[b,c,d](String fmt, Int32 len, FSharpFunc`2 outputChar, FSharpFunc`2 outa, b os, FSharpFunc`2 finalize, FSharpList`1 args, Int32 i)</span>
