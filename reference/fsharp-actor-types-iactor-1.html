@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Dependencies</title>
+    <title>IActor<'a> - Fsharp.Actor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="F# Actor Framework">
+    <meta name="description" content="">
     <meta name="author" content="Colin Bull">
 
     <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
@@ -44,13 +44,80 @@
         <div class="row">
             <div class="span9" id="main">
                 
-<p><a name="14012311">&#160;</a></p>
 
-<h3>References</h3>
 
-<ul>
-</ul>
 
+<h1>IActor<'a></h1>
+<div class="xmldoc">
+</div>
+  <h3>Instance members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Instance member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '90', 90)" onmouseover="showTip(event, '90', 90)">
+            Post(arg1)
+          </code>
+          <div class="tip" id="90">
+            <strong>Signature:</strong>&#39;a -&gt; unit<br />
+              <strong>Modifiers:</strong> abstract<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '91', 91)" onmouseover="showTip(event, '91', 91)">
+            Post(arg1, arg2)
+          </code>
+          <div class="tip" id="91">
+            <strong>Signature:</strong>(&#39;a * IActor option) -&gt; unit<br />
+              <strong>Modifiers:</strong> abstract<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '92', 92)" onmouseover="showTip(event, '92', 92)">
+            Receive(arg1)
+          </code>
+          <div class="tip" id="92">
+            <strong>Signature:</strong>(int option) -&gt; Async&lt;&#39;a * IActor option&gt;<br />
+              <strong>Modifiers:</strong> abstract<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '93', 93)" onmouseover="showTip(event, '93', 93)">
+            Receive(arg1)
+          </code>
+          <div class="tip" id="93">
+            <strong>Signature:</strong>unit -&gt; Async&lt;&#39;a * IActor option&gt;<br />
+              <strong>Modifiers:</strong> abstract<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
             </div>
             <div class="span3">

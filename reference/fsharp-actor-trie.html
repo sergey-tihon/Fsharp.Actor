@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Trie - Fsharp.Actor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="Colin Bull">
+
+    <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.min.js"></script>
+    <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+
+    <link type="text/css" rel="stylesheet" href="/Fsharp.Actor/content/style.css" />
+    <script type="text/javascript" src="/Fsharp.Actor/content/tips.js"></script>
+    <style>
+        body {
+            font-family: Gudea, serif;
+            font-size: 15px;
+        }
+        table.pre, pre.fssnip, pre {
+            white-space: pre-wrap;
+        }
+        /*table.pre td.lines {
+            display: none;
+        }*/
+    </style>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <div class="container">
+        <div class="masthead">
+            <ul class="nav nav-pills pull-right">
+                <li><a href="http://fsharp.org">fsharp.org</a></li>
+                <li><a href="https://github.com/colinbull/Fsharp.Actor">github page</a></li>
+            </ul>
+            <h3 class="muted"><a href="/Fsharp.Actor/index.html">Fsharp.Actor</a></h3>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="span9" id="main">
+                
+
+
+
+<h1>Trie</h1>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+  <h2>Nested types and modules</h2>
+  <div>
+      <table class="table table-bordered type-list">
+    <thead>
+      <tr><td>Type</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td class="type-name">
+            <a href="fsharp-actor-trie-trie-2.html">trie<'k, 'v></a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '31', 31)" onmouseover="showTip(event, '31', 31)">
+            add key value trie
+          </code>
+          <div class="tip" id="31">
+            <strong>Signature:</strong>key:&#39;?37743 list -&gt; value:&#39;?37744 -&gt; trie:trie&lt;&#39;?37743,&#39;?37744&gt; -&gt; trie&lt;&#39;?37743,&#39;?37744&gt;<br />
+                          <strong>Type parameters:</strong> '?37743, '?37744          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '32', 32)" onmouseover="showTip(event, '32', 32)">
+            empty 
+          </code>
+          <div class="tip" id="32">
+            <strong>Signature:</strong>trie&lt;&#39;?37731,&#39;?37732&gt;<br />
+                          <strong>Type parameters:</strong> '?37731, '?37732          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '33', 33)" onmouseover="showTip(event, '33', 33)">
+            isEmpty _arg1
+          </code>
+          <div class="tip" id="33">
+            <strong>Signature:</strong>_arg1:trie&lt;&#39;?37728,&#39;?37729&gt; -&gt; bool<br />
+                          <strong>Type parameters:</strong> '?37728, '?37729          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '34', 34)" onmouseover="showTip(event, '34', 34)">
+            remove key trie
+          </code>
+          <div class="tip" id="34">
+            <strong>Signature:</strong>key:&#39;?37746 list -&gt; trie:trie&lt;&#39;?37746,&#39;?37747&gt; -&gt; trie&lt;&#39;?37746,&#39;?37747&gt;<br />
+                          <strong>Type parameters:</strong> '?37746, '?37747          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '35', 35)" onmouseover="showTip(event, '35', 35)">
+            subtrie keys trie
+          </code>
+          <div class="tip" id="35">
+            <strong>Signature:</strong>keys:&#39;?37740 list -&gt; trie:trie&lt;&#39;?37740,&#39;?37741&gt; -&gt; trie&lt;&#39;?37740,&#39;?37741&gt;<br />
+                          <strong>Type parameters:</strong> '?37740, '?37741          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '36', 36)" onmouseover="showTip(event, '36', 36)">
+            tryFind keys trie
+          </code>
+          <div class="tip" id="36">
+            <strong>Signature:</strong>keys:&#39;?37737 list -&gt; trie:trie&lt;&#39;?37737,&#39;?37738&gt; -&gt; &#39;?37738 option<br />
+                          <strong>Type parameters:</strong> '?37737, '?37738          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '37', 37)" onmouseover="showTip(event, '37', 37)">
+            values trie
+          </code>
+          <div class="tip" id="37">
+            <strong>Signature:</strong>trie:trie&lt;&#39;?37734,&#39;?37735&gt; -&gt; &#39;?37735 list<br />
+                          <strong>Type parameters:</strong> '?37734, '?37735          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+            </div>
+            <div class="span3">
+                <ul class="nav nav-list" id="menu">
+                    <li class="nav-header">Fsharp.Actor</li>
+                    <li><a href="/Fsharp.Actor/index.html">Home page</a></li>
+                    <li class="divider"></li>
+                    <li><a href="https://www.nuget.org/packages/Fsharp.Actor">Get Library via NuGet</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor">Source Code on GitHub</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/LICENSE.md">License (Apache 2.0)</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/RELEASE_NOTES.md">Release Notes</a></li>
+
+                    <li class="nav-header">F# Actor documentation</li>
+                    <li><a href="/Fsharp.Actor/Actor.html">Actors</a></li>
+                    <li><a href="/Fsharp.Actor/Supervision.html">Supervision</a></li>
+                    <li><a href="/Fsharp.Actor/Patterns.html">Patterns</a></li>
+                    <li><a href="/Fsharp.Actor/Remoting.html">Remoting</a></li>
+                    <li class="divider"></li>
+                    <li><a href="/Fsharp.Actor/reference/index.html">API Reference</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <a href="https://github.com/colinbull/Fsharp.Actor"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png" alt="Fork me on GitHub"></a>
+</body>
+</html>

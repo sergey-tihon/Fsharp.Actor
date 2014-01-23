@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Actor - Fsharp.Actor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="Colin Bull">
+
+    <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.min.js"></script>
+    <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+
+    <link type="text/css" rel="stylesheet" href="/Fsharp.Actor/content/style.css" />
+    <script type="text/javascript" src="/Fsharp.Actor/content/tips.js"></script>
+    <style>
+        body {
+            font-family: Gudea, serif;
+            font-size: 15px;
+        }
+        table.pre, pre.fssnip, pre {
+            white-space: pre-wrap;
+        }
+        /*table.pre td.lines {
+            display: none;
+        }*/
+    </style>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <div class="container">
+        <div class="masthead">
+            <ul class="nav nav-pills pull-right">
+                <li><a href="http://fsharp.org">fsharp.org</a></li>
+                <li><a href="https://github.com/colinbull/Fsharp.Actor">github page</a></li>
+            </ul>
+            <h3 class="muted"><a href="/Fsharp.Actor/index.html">Fsharp.Actor</a></h3>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="span9" id="main">
+                
+
+
+
+<h1>Actor</h1>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+  <h2>Nested types and modules</h2>
+  <div>
+      <table class="table table-bordered type-list">
+    <thead>
+      <tr><td>Type</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td class="type-name">
+            <a href="fsharp-actor-actor-options-1.html">Options<'a></a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+        <tr>
+          <td class="type-name">
+            <a href="fsharp-actor-actor-t-1.html">T<'a></a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '40', 40)" onmouseover="showTip(event, '40', 40)">
+            create options computation
+          </code>
+          <div class="tip" id="40">
+            <strong>Signature:</strong>options:Options&lt;&#39;?38044&gt; -&gt; computation:(IActor&lt;&#39;?38044&gt; -&gt; Async&lt;unit&gt;) -&gt; IActor<br />
+                          <strong>Type parameters:</strong> '?38044          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '41', 41)" onmouseover="showTip(event, '41', 41)">
+            deadLetter name
+          </code>
+          <div class="tip" id="41">
+            <strong>Signature:</strong>name:string -&gt; IActor&lt;&#39;?38055&gt;<br />
+                          <strong>Type parameters:</strong> '?38055          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '42', 42)" onmouseover="showTip(event, '42', 42)">
+            link linkees actor
+          </code>
+          <div class="tip" id="42">
+            <strong>Signature:</strong>linkees:seq&lt;IActor&gt; -&gt; actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '43', 43)" onmouseover="showTip(event, '43', 43)">
+            logEvents logger actor
+          </code>
+          <div class="tip" id="43">
+            <strong>Signature:</strong>logger:ILogger -&gt; actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '44', 44)" onmouseover="showTip(event, '44', 44)">
+            register actor
+          </code>
+          <div class="tip" id="44">
+            <strong>Signature:</strong>actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '45', 45)" onmouseover="showTip(event, '45', 45)">
+            spawn options computation
+          </code>
+          <div class="tip" id="45">
+            <strong>Signature:</strong>options:Options&lt;&#39;?38047&gt; -&gt; computation:(IActor&lt;&#39;?38047&gt; -&gt; Async&lt;unit&gt;) -&gt; IActor<br />
+                          <strong>Type parameters:</strong> '?38047          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '46', 46)" onmouseover="showTip(event, '46', 46)">
+            spawnLinked options linkees computation
+          </code>
+          <div class="tip" id="46">
+            <strong>Signature:</strong>options:Options&lt;&#39;?38051&gt; -&gt; linkees:seq&lt;IActor&gt; -&gt; computation:(IActor&lt;&#39;?38051&gt; -&gt; Async&lt;unit&gt;) -&gt; IActor<br />
+                          <strong>Type parameters:</strong> '?38051          </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '47', 47)" onmouseover="showTip(event, '47', 47)">
+            start actor
+          </code>
+          <div class="tip" id="47">
+            <strong>Signature:</strong>actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '48', 48)" onmouseover="showTip(event, '48', 48)">
+            supervisedBy sup actor
+          </code>
+          <div class="tip" id="48">
+            <strong>Signature:</strong>sup:IActor -&gt; actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '49', 49)" onmouseover="showTip(event, '49', 49)">
+            unlink linkees actor
+          </code>
+          <div class="tip" id="49">
+            <strong>Signature:</strong>linkees:seq&lt;IActor&gt; -&gt; actor:IActor -&gt; IActor<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '50', 50)" onmouseover="showTip(event, '50', 50)">
+            unwatch actors
+          </code>
+          <div class="tip" id="50">
+            <strong>Signature:</strong>actors:seq&lt;IActor&gt; -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+        
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+            </div>
+            <div class="span3">
+                <ul class="nav nav-list" id="menu">
+                    <li class="nav-header">Fsharp.Actor</li>
+                    <li><a href="/Fsharp.Actor/index.html">Home page</a></li>
+                    <li class="divider"></li>
+                    <li><a href="https://www.nuget.org/packages/Fsharp.Actor">Get Library via NuGet</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor">Source Code on GitHub</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/LICENSE.md">License (Apache 2.0)</a></li>
+                    <li><a href="https://github.com/colinbull/Fsharp.Actor/blob/master/RELEASE_NOTES.md">Release Notes</a></li>
+
+                    <li class="nav-header">F# Actor documentation</li>
+                    <li><a href="/Fsharp.Actor/Actor.html">Actors</a></li>
+                    <li><a href="/Fsharp.Actor/Supervision.html">Supervision</a></li>
+                    <li><a href="/Fsharp.Actor/Patterns.html">Patterns</a></li>
+                    <li><a href="/Fsharp.Actor/Remoting.html">Remoting</a></li>
+                    <li class="divider"></li>
+                    <li><a href="/Fsharp.Actor/reference/index.html">API Reference</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <a href="https://github.com/colinbull/Fsharp.Actor"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png" alt="Fork me on GitHub"></a>
+</body>
+</html>
