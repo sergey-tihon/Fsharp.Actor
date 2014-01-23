@@ -52,17 +52,10 @@ To use remoting we must first register a transport and a serialiser to use with 
 for packaging, sending and recieving messages to/from other remote systems. Each transport should have a scheme thast uniquely 
 identifies it. To register a transport, do something like the following</p>
 
-<table class="pre"><tr><td class="lines"><pre class="fssnip">
-<span class="l">1: </span>
-<span class="l">2: </span>
-</pre>
-</td>
-<td class="snippet"><pre class="fssnip">
-<span class="k">let</span> <span class="i">transport</span> <span class="o">=</span> <span class="k">new</span> <span class="i">FractureTransport</span>(<span class="n">8080</span>) <span class="o">:&gt;</span> <span class="i">ITransport</span>
-<span class="i">Registry</span><span class="o">.</span><span class="i">Transport</span><span class="o">.</span><span class="i">register</span> <span class="i">transport</span></pre>
-</td>
-</tr>
-</table>
+<pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="i">transport</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="i">FractureTransport</span>(<span class="n">8080</span>) <span class="o">:&gt;</span> <span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="i">ITransport</span>
+<span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="i">Registry</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs5', 5)" onmouseover="showTip(event, 'fs5', 5)" class="i">Transport</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs6', 6)" onmouseover="showTip(event, 'fs6', 6)" class="i">register</span> <span onmouseout="hideTip(event, 'fs1', 7)" onmouseover="showTip(event, 'fs1', 7)" class="i">transport</span></pre>
+
 
 <p>The above call registers a transport that uses <a href="https://github.com/fractureio/fracture">Fracture</a>. When a transport is created it
 is wrapped in a actor of <code>Actor&lt;RemoteMessage&gt;</code> and path <code>transports/{scheme}</code> in the case of 
@@ -71,38 +64,26 @@ is initialised the <code>OneForOne</code> strategy so will restart the transport
 
 <p>Sending a message to a remote actor is identical to sending messages to local actors apart from the actor path has to be fully qualified.</p>
 
-<table class="pre"><tr><td class="lines"><pre class="fssnip">
-<span class="l">1: </span>
-</pre>
-</td>
-<td class="snippet"><pre class="fssnip">
+<pre class="fssnip">
 <span class="s">&quot;</span><span class="s">actor</span><span class="s">.</span><span class="s">fracture</span><span class="s">:</span><span class="s">/</span><span class="s">/</span><span class="s">127</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">1</span><span class="s">:</span><span class="s">8081</span><span class="s">/</span><span class="s">RemoteActor</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span class="s">&quot;</span><span class="s">Some</span><span class="s"> </span><span class="s">remote</span><span class="s"> </span><span class="s">actor</span><span class="s"> </span><span class="s">message</span><span class="s">&quot;</span></pre>
-</td>
-</tr>
-</table>
+
 
 <p>In addition to sending normal messages to a remote actor, we can also send system messages. For example if we want to restart a remote actor
 We could send the following message</p>
 
-<table class="pre"><tr><td class="lines"><pre class="fssnip">
-<span class="l">1: </span>
-</pre>
-</td>
-<td class="snippet"><pre class="fssnip">
-<span class="s">&quot;</span><span class="s">actor</span><span class="s">.</span><span class="s">fracture</span><span class="s">:</span><span class="s">/</span><span class="s">/</span><span class="s">127</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">1</span><span class="s">:</span><span class="s">8081</span><span class="s">/</span><span class="s">RemoteActor</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span class="i">Restart</span></pre>
-</td>
-</tr>
-</table>
+<pre class="fssnip">
+<span class="s">&quot;</span><span class="s">actor</span><span class="s">.</span><span class="s">fracture</span><span class="s">:</span><span class="s">/</span><span class="s">/</span><span class="s">127</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">0</span><span class="s">.</span><span class="s">1</span><span class="s">:</span><span class="s">8081</span><span class="s">/</span><span class="s">RemoteActor</span><span class="s">&quot;</span> <span class="o">?&lt;--</span> <span onmouseout="hideTip(event, 'fs7', 8)" onmouseover="showTip(event, 'fs7', 8)" class="i">Restart</span></pre>
+
 
 <p>//TODO: More to come, as implemented remote supervision, deployment</p>
 
-<p><a name="14012311">&#160;</a></p>
-
-<h3>References</h3>
-
-<ul>
-</ul>
-
+<div class="tip" id="fs1">val transport : ITransport<br /><br />Full name: Remoting.transport</div>
+<div class="tip" id="fs2">Multiple items<br />type FractureTransport =<br />&#160;&#160;interface ITransport<br />&#160;&#160;new : listenPort:int * ?serialiser:ISerialiser * ?log:ILogger -&gt; FractureTransport<br /><br />Full name: FSharp.Actor.Fracture.FractureTransport<br /><br />--------------------<br />new : listenPort:int * ?serialiser:ISerialiser * ?log:ILogger -&gt; FractureTransport</div>
+<div class="tip" id="fs3">type ITransport =<br />&#160;&#160;interface<br />&#160;&#160;&#160;&#160;abstract member CreateRemoteActor : ActorPath -&gt; IActor<br />&#160;&#160;&#160;&#160;abstract member Send : ActorPath * &#39;a * IActor option -&gt; unit<br />&#160;&#160;&#160;&#160;abstract member SendSystemMessage : ActorPath * SystemMessage * IActor option -&gt; unit<br />&#160;&#160;&#160;&#160;abstract member Scheme : string<br />&#160;&#160;end<br /><br />Full name: FSharp.Actor.Types.ITransport</div>
+<div class="tip" id="fs4">module Registry<br /><br />from FSharp.Actor</div>
+<div class="tip" id="fs5">module Transport<br /><br />from FSharp.Actor.Registry</div>
+<div class="tip" id="fs6">val register : transport:ITransport -&gt; unit<br /><br />Full name: FSharp.Actor.Registry.Transport.register</div>
+<div class="tip" id="fs7">union case SystemMessage.Restart: string -&gt; SystemMessage</div>
 
             </div>
             <div class="span3">
